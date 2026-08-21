@@ -15,22 +15,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.hawkbit.repository.Identifiable;
-import org.eclipse.hawkbit.repository.exception.EntityNotFoundException;
-import org.eclipse.hawkbit.repository.exception.InsufficientPermissionException;
-import org.eclipse.hawkbit.repository.jpa.acm.AccessController;
-import org.eclipse.hawkbit.repository.jpa.model.JpaTarget;
-import org.eclipse.hawkbit.repository.jpa.model.JpaTargetType;
-import org.eclipse.hawkbit.repository.jpa.specifications.TargetSpecifications;
-import org.eclipse.hawkbit.repository.jpa.specifications.TargetTypeSpecification;
-import org.eclipse.hawkbit.repository.model.Target;
-import org.eclipse.hawkbit.repository.model.TargetType;
-import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Pageable;
-
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
+import org.eclipse.hawkbit.repository.Identifiable;
+import org.eclipse.hawkbit.repository.builder.TargetTypeCreate;
+import org.eclipse.hawkbit.repository.builder.TargetTypeUpdate;
+import org.eclipse.hawkbit.repository.exception.EntityNotFoundException;
+import org.eclipse.hawkbit.repository.exception.InsufficientPermissionException;
+import org.eclipse.hawkbit.repository.jpa.acm.AccessController;
+import org.eclipse.hawkbit.repository.jpa.model.JpaTargetType;
+import org.eclipse.hawkbit.repository.jpa.specifications.TargetTypeSpecification;
+import org.eclipse.hawkbit.repository.model.TargetType;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Pageable;
 
 @Feature("Component Tests - Access Control")
 @Story("Test Target Type Access Controller")
@@ -48,14 +46,6 @@ class TargetTypeAccessControllerTest extends AbstractAccessControllerTest {
         final TargetType hiddenTargetType = targetTypeManagement
                 .create(entityFactory.targetType().create().name("type2"));
 
-        // create target and assign with hidden target type
-        final Target targetWithHiddenTargetType = targetManagement.create(entityFactory.target().create()
-                .controllerId("targetWithUnseeableTargetType").targetType(hiddenTargetType.getId()));
-
-        // create target and assign with permitted target type
-        final Target targetWithPermittedTargetType = targetManagement.create(entityFactory.target().create()
-                .controllerId("targetWithPermittedTargetType").targetType(permittedTargetType.getId()));
-
         // define access controlling rule
         defineAccess(AccessController.Operation.READ, permittedTargetType);
 
@@ -64,39 +54,13 @@ class TargetTypeAccessControllerTest extends AbstractAccessControllerTest {
                 .containsOnly(permittedTargetType.getId());
 
         // verify targetTypeManagement#findByRsql
-        assertThat(targetTypeManagement.findByRsql(Pageable.unpaged(), "id==*").get().map(Identifiable::getId).toList())
+        assertThat(targetTypeManagement.findByRsql(Pageable.unpaged(), "name==*").get().map(Identifiable::getId).toList())
                 .containsOnly(permittedTargetType.getId());
-
-        // verify targetTypeManagement#findByTargetControllerId
-        assertThat(targetTypeManagement.findByTargetControllerId(targetWithPermittedTargetType.getControllerId()))
-                .hasValueSatisfying(foundType -> assertThat(foundType.getId()).isEqualTo(permittedTargetType.getId()));
-        assertThat(targetTypeManagement.findByTargetControllerId(targetWithHiddenTargetType.getControllerId()))
-                .isEmpty();
-
-        // verify targetTypeManagement#findByTargetControllerIds
-        assertThat(
-                targetTypeManagement
-                        .findByTargetControllerIds(Arrays.asList(targetWithPermittedTargetType.getControllerId(),
-                                targetWithHiddenTargetType.getControllerId()))
-                        .stream().map(Identifiable::getId).toList())
-                .hasSize(1).containsOnly(permittedTargetType.getId());
-
-        // verify targetTypeManagement#findByTargetId
-        assertThat(targetTypeManagement.findByTargetId(targetWithPermittedTargetType.getId()))
-                .hasValueSatisfying(foundType -> assertThat(foundType.getId()).isEqualTo(permittedTargetType.getId()));
-        assertThat(targetTypeManagement.findByTargetId(targetWithHiddenTargetType.getId())).isEmpty();
-
-        // verify targetTypeManagement#findByTargetIds
-        assertThat(targetTypeManagement
-                .findByTargetIds(
-                        Arrays.asList(targetWithPermittedTargetType.getId(), targetWithHiddenTargetType.getId()))
-                .stream().map(Identifiable::getId).toList()).hasSize(1).containsOnly(permittedTargetType.getId());
 
         // verify targetTypeManagement#findByName
         assertThat(targetTypeManagement.findByName(Pageable.unpaged(), permittedTargetType.getName()).getContent())
-                .hasSize(1).satisfies(results -> {
-                    assertThat(results.get(0).getId()).isEqualTo(permittedTargetType.getId());
-                });
+                .hasSize(1).satisfies(results ->
+                        assertThat(results.get(0).getId()).isEqualTo(permittedTargetType.getId()));
         assertThat(targetTypeManagement.findByName(Pageable.unpaged(), hiddenTargetType.getName())).isEmpty();
 
         // verify targetTypeManagement#count
@@ -112,24 +76,26 @@ class TargetTypeAccessControllerTest extends AbstractAccessControllerTest {
 
         // verify targetTypeManagement#get by id
         assertThat(targetTypeManagement.get(permittedTargetType.getId())).isPresent();
-        assertThat(targetTypeManagement.get(hiddenTargetType.getId())).isEmpty();
+        final Long hiddenTargetTypeId = hiddenTargetType.getId();
+        assertThat(targetTypeManagement.get(hiddenTargetTypeId)).isEmpty();
 
         // verify targetTypeManagement#getByName
         assertThat(targetTypeManagement.getByName(permittedTargetType.getName())).isPresent();
         assertThat(targetTypeManagement.getByName(hiddenTargetType.getName())).isEmpty();
 
         // verify targetTypeManagement#get by ids
-        assertThat(targetTypeManagement.get(Arrays.asList(permittedTargetType.getId(), hiddenTargetType.getId()))
+        assertThat(targetTypeManagement.get(Arrays.asList(permittedTargetType.getId(), hiddenTargetTypeId))
                 .stream().map(Identifiable::getId).toList()).containsOnly(permittedTargetType.getId());
 
         // verify targetTypeManagement#update is not possible. Assert exception thrown.
-        assertThatThrownBy(() -> targetTypeManagement.update(entityFactory.targetType().update(hiddenTargetType.getId())
-                .name(hiddenTargetType.getName() + "/new").description("newDesc")))
+        final TargetTypeUpdate targetTypeUpdate = entityFactory.targetType().update(hiddenTargetTypeId)
+                .name(hiddenTargetType.getName() + "/new").description("newDesc");
+        assertThatThrownBy(() -> targetTypeManagement.update(targetTypeUpdate))
                 .as("Target type update shouldn't be allowed since the target type is not visible.")
                 .isInstanceOf(EntityNotFoundException.class);
 
         // verify targetTypeManagement#delete is not possible. Assert exception thrown.
-        assertThatThrownBy(() -> targetTypeManagement.delete(hiddenTargetType.getId()))
+        assertThatThrownBy(() -> targetTypeManagement.delete(hiddenTargetTypeId))
                 .as("Target type delete shouldn't be allowed since the target type is not visible.")
                 .isInstanceOf(EntityNotFoundException.class);
     }
@@ -138,11 +104,9 @@ class TargetTypeAccessControllerTest extends AbstractAccessControllerTest {
     @Description("Verifies delete access rules for target types")
     void verifyTargetTypeDeleteOperations() {
         permitAllOperations(AccessController.Operation.CREATE);
-        final TargetType manageableTargetType = targetTypeManagement
-                .create(entityFactory.targetType().create().name("type1"));
+        final TargetType manageableTargetType = targetTypeManagement.create(entityFactory.targetType().create().name("type1"));
 
-        final TargetType readOnlyTargetType = targetTypeManagement
-                .create(entityFactory.targetType().create().name("type2"));
+        final TargetType readOnlyTargetType = targetTypeManagement.create(entityFactory.targetType().create().name("type2"));
 
         // define access controlling rule to allow reading both types
         defineAccess(AccessController.Operation.READ, manageableTargetType, readOnlyTargetType);
@@ -154,9 +118,9 @@ class TargetTypeAccessControllerTest extends AbstractAccessControllerTest {
         targetTypeManagement.delete(manageableTargetType.getId());
 
         // verify targetTypeManagement#delete for readOnlyTargetType is not possible
-        assertThatThrownBy(() -> {
-            targetTypeManagement.delete(readOnlyTargetType.getId());
-        }).isInstanceOfAny(InsufficientPermissionException.class, EntityNotFoundException.class);
+        final Long readOnlyTargetTypeId = readOnlyTargetType.getId();
+        assertThatThrownBy(() -> targetTypeManagement.delete(readOnlyTargetTypeId))
+                .isInstanceOfAny(InsufficientPermissionException.class, EntityNotFoundException.class);
     }
 
     @Test
@@ -180,10 +144,10 @@ class TargetTypeAccessControllerTest extends AbstractAccessControllerTest {
                 .name(manageableTargetType.getName() + "/new").description("newDesc"));
 
         // verify targetTypeManagement#update for readOnlyTargetType is not possible
-        assertThatThrownBy(() -> {
-            targetTypeManagement.update(entityFactory.targetType().update(readOnlyTargetType.getId())
-                    .name(readOnlyTargetType.getName() + "/new").description("newDesc"));
-        }).isInstanceOf(InsufficientPermissionException.class);
+        final TargetTypeUpdate targetTypeUpdate = entityFactory.targetType().update(readOnlyTargetType.getId())
+                .name(readOnlyTargetType.getName() + "/new").description("newDesc");
+        assertThatThrownBy(() -> targetTypeManagement.update(targetTypeUpdate))
+                .isInstanceOf(InsufficientPermissionException.class);
     }
 
     @Test
@@ -191,7 +155,8 @@ class TargetTypeAccessControllerTest extends AbstractAccessControllerTest {
     void verifyTargetTypeCreationBlockedByAccessController() {
         defineAccess(AccessController.Operation.CREATE); // allows for none
         // verify targetTypeManagement#create for any type
-        assertThatThrownBy(() -> targetTypeManagement.create(entityFactory.targetType().create().name("type1")))
+        final TargetTypeCreate targetTypeCreate = entityFactory.targetType().create().name("type1");
+        assertThatThrownBy(() -> targetTypeManagement.create(targetTypeCreate))
                 .as("Target type create shouldn't be allowed since the target type is not visible.")
                 .isInstanceOf(InsufficientPermissionException.class);
     }

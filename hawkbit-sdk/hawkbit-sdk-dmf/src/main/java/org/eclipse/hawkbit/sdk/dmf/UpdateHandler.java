@@ -9,41 +9,31 @@
  */
 package org.eclipse.hawkbit.sdk.dmf;
 
-import com.google.common.io.BaseEncoding;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HexFormat;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
-import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.eclipse.hawkbit.dmf.amqp.api.EventTopic;
 import org.eclipse.hawkbit.dmf.json.model.DmfActionStatus;
 import org.eclipse.hawkbit.dmf.json.model.DmfArtifact;
 import org.eclipse.hawkbit.dmf.json.model.DmfArtifactHash;
 import org.eclipse.hawkbit.dmf.json.model.DmfDownloadAndUpdateRequest;
 import org.eclipse.hawkbit.dmf.json.model.DmfSoftwareModule;
+import org.eclipse.hawkbit.sdk.HawkbitClient;
 import org.eclipse.hawkbit.sdk.spi.ArtifactHandler;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
+import org.springframework.hateoas.Link;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Update handler provide plug-in endpoint allowing for customization of the update processing.
@@ -68,20 +58,15 @@ public interface UpdateHandler {
     @Slf4j
     class UpdateProcessor implements Runnable {
 
+        protected final Map<String, Path> downloads = new HashMap<>();
         private static final String LOG_PREFIX = "[{}:{}] ";
-
         private static final String DOWNLOAD_LOG_MESSAGE = "Download ";
         private static final String EXPECTED = "(Expected: ";
         private static final String BUT_GOT_LOG_MESSAGE = " but got: ";
-        private static final int MINIMUM_TOKEN_LENGTH_FOR_HINT = 6;
-
         private final DmfController dmfController;
-
         private final DmfDownloadAndUpdateRequest updateRequest;
         private final EventTopic eventTopic;
-
         private final ArtifactHandler artifactHandler;
-        protected final Map<String, Path> downloads = new HashMap<>();
 
         public UpdateProcessor(
                 final DmfController dmfController,
@@ -104,12 +89,8 @@ public interface UpdateHandler {
                 try {
                     final UpdateStatus updateStatus = download();
                     dmfController.sendFeedback(updateStatus);
-                    if (updateStatus.status() == DmfActionStatus.ERROR) {
-                        return;
-                    } else {
-                        if (eventTopic != EventTopic.DOWNLOAD) {
-                            dmfController.sendFeedback(update());
-                        }
+                    if (updateStatus.status() != DmfActionStatus.ERROR && eventTopic != EventTopic.DOWNLOAD) {
+                        dmfController.sendFeedback(update());
                     }
                 } finally {
                     cleanup();
@@ -137,22 +118,14 @@ public interface UpdateHandler {
                                     .map(art -> "Download start for: " + art.getFilename() +
                                             " with size " + art.getSize() +
                                             " and hashes " + art.getHashes() + " ...")
-                                    .collect(Collectors.toList())));
+                                    .toList()));
 
-            log.info(LOG_PREFIX + "Start download", dmfController.getTenantId(), dmfController.getControllerId());
+            log.info(LOG_PREFIX + "Start download", dmfController.getTenant().getTenantId(), dmfController.getControllerId());
 
             final List<UpdateStatus> updateStatusList = new ArrayList<>();
-            modules.forEach(module -> module.getArtifacts().forEach(artifact -> {
-                if (dmfController.isDownloadAuthenticationEnabled()) {
-                    handleArtifact(
-                            updateRequest.getTargetSecurityToken(),
-                            updateStatusList, artifact);
-                } else {
-                    handleArtifact(null, updateStatusList, artifact);
-                }
-            }));
+            modules.forEach(module -> module.getArtifacts().forEach(artifact -> handleArtifact(updateStatusList, artifact)));
 
-            log.info(LOG_PREFIX + "Download complete.", dmfController.getTenantId(), dmfController.getControllerId());
+            log.info(LOG_PREFIX + "Download complete.", dmfController.getTenant().getTenantId(), dmfController.getControllerId());
 
             final List<String> messages = new LinkedList<>();
             messages.add("Download complete.");
@@ -168,7 +141,7 @@ public interface UpdateHandler {
          * may get the {@link #downloads} map and apply them
          */
         protected UpdateStatus update() {
-            log.info(LOG_PREFIX + "Updated", dmfController.getTenantId(), dmfController.getControllerId());
+            log.info(LOG_PREFIX + "Updated", dmfController.getTenant().getTenantId(), dmfController.getControllerId());
             return new UpdateStatus(DmfActionStatus.FINISHED, List.of("Update complete."));
         }
 
@@ -182,140 +155,11 @@ public interface UpdateHandler {
                     Files.delete(path);
                 } catch (final IOException e) {
                     log.warn(LOG_PREFIX + "Failed to cleanup {}",
-                            dmfController.getTenantId(), dmfController.getControllerId(),
+                            dmfController.getTenant().getTenantId(), dmfController.getControllerId(),
                             path.toFile().getAbsolutePath(), e);
                 }
             });
-            log.debug(LOG_PREFIX + "Cleaned up", dmfController.getTenantId(), dmfController.getControllerId());
-        }
-
-        private void handleArtifact(
-                final String targetToken,
-                final List<UpdateStatus> status, final DmfArtifact artifact) {
-            if (artifact.getUrls().containsKey("HTTPS")) {
-                status.add(downloadUrl(artifact.getUrls().get("HTTPS"), targetToken,
-                        artifact.getHashes(), artifact.getSize()));
-            } else if (artifact.getUrls().containsKey("HTTP")) {
-                status.add(downloadUrl(artifact.getUrls().get("HTTP"), targetToken,
-                        artifact.getHashes(), artifact.getSize()));
-            }
-        }
-
-        private UpdateStatus downloadUrl(
-                final String url, final String targetToken,
-                final DmfArtifactHash hash, final long size) {
-            if (log.isDebugEnabled()) {
-                log.debug(LOG_PREFIX + "Downloading {} with token {}, expected hash {} and size {}",
-                        dmfController.getTenantId(), dmfController.getControllerId(), url,
-                        hideTokenDetails(targetToken), hash, size);
-            }
-
-            try {
-                return readAndCheckDownloadUrl(url, targetToken, hash, size);
-            } catch (final IOException | KeyManagementException | NoSuchAlgorithmException | KeyStoreException e) {
-                log.error(LOG_PREFIX + "Failed to download {}",
-                        dmfController.getTenantId(), dmfController.getControllerId(), url, e);
-                return new UpdateStatus(
-                        DmfActionStatus.ERROR,
-                        List.of("Failed to download " + url + ": " + e.getMessage()));
-            }
-        }
-
-        private UpdateStatus readAndCheckDownloadUrl(final String url,
-                final String targetToken, final DmfArtifactHash hash, final long size)
-                throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException, IOException {
-            final Validator sizeValidator = sizeValidator(size);
-            final Validator hashValidator = hashValidator(hash);
-            final ArtifactHandler.DownloadHandler downloadHandler = artifactHandler.getDownloadHandler(url);
-
-            try (final CloseableHttpClient httpclient = createHttpClientThatAcceptsAllServerCerts()) {
-                final HttpGet request = new HttpGet(url);
-                if (StringUtils.hasLength(targetToken)) {
-                    request.addHeader(HttpHeaders.AUTHORIZATION, "TargetToken " + targetToken);
-                }
-
-                return httpclient.execute(request, response -> {
-                    try {
-                        if (response.getCode() != HttpStatus.OK.value()) {
-                            throw new IllegalStateException("Unexpected status code: " + response.getCode());
-                        }
-
-                        if (response.getEntity().getContentLength() != size) {
-                            throw new IllegalArgumentException("Wrong content length " + EXPECTED + size + BUT_GOT_LOG_MESSAGE + response.getEntity()
-                                    .getContentLength() + ")!");
-                        }
-
-                        final byte[] buff = new byte[32 * 1024];
-                        try (final InputStream is = response.getEntity().getContent()) {
-                            for (int read; (read = is.read(buff)) != -1; ) {
-                                sizeValidator.read(buff, read);
-                                hashValidator.read(buff, read);
-                                downloadHandler.read(buff, 0, read);
-                            }
-                        }
-                        sizeValidator.validate();
-                        hashValidator.validate();
-
-                        final String message = "Downloaded " + url + " (" + size + " bytes)";
-                        log.debug(LOG_PREFIX + message, dmfController.getTenantId(), dmfController.getControllerId());
-                        downloadHandler.finished(ArtifactHandler.DownloadHandler.Status.SUCCESS);
-                        downloadHandler.download().ifPresent(path -> downloads.put(url, path));
-                        return new UpdateStatus(DmfActionStatus.FINISHED, List.of(message));
-                    } catch (final Exception e) {
-                        final String message = e.getMessage();
-                        if (log.isTraceEnabled()) {
-                            log.error(LOG_PREFIX + DOWNLOAD_LOG_MESSAGE + url + " failed: " + message,
-                                    dmfController.getTenantId(), dmfController.getControllerId(), e);
-                        } else {
-                            log.error(LOG_PREFIX + DOWNLOAD_LOG_MESSAGE + url + " failed: " + message,
-                                    dmfController.getTenantId(), dmfController.getControllerId());
-                        }
-                        downloadHandler.finished(ArtifactHandler.DownloadHandler.Status.ERROR);
-                        return new UpdateStatus(DmfActionStatus.ERROR, List.of(message));
-                    }
-                });
-            }
-        }
-
-        private static String hideTokenDetails(final String targetToken) {
-            if (targetToken == null) {
-                return "<NULL!>";
-            }
-
-            if (targetToken.isEmpty()) {
-                return "<EMPTY!>";
-            }
-
-            if (targetToken.length() <= MINIMUM_TOKEN_LENGTH_FOR_HINT) {
-                return "***";
-            }
-
-            return targetToken.substring(0, 2) + "***" + targetToken.substring(targetToken.length() - 2);
-        }
-
-        private static CloseableHttpClient createHttpClientThatAcceptsAllServerCerts()
-                throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
-            return HttpClients
-                    .custom()
-                    .setConnectionManager(
-                            PoolingHttpClientConnectionManagerBuilder.create()
-                                    .setSSLSocketFactory(
-                                            new SSLConnectionSocketFactory(
-                                                    SSLContextBuilder
-                                                            .create()
-                                                            .loadTrustMaterial(null, (chain, authType) -> true)
-                                                            .build()))
-                                    .build()
-                    )
-                    .build();
-        }
-
-
-        private interface Validator {
-
-            void read(final byte[] buff, final int len);
-
-            void validate();
+            log.debug(LOG_PREFIX + "Cleaned up", dmfController.getTenant().getTenantId(), dmfController.getControllerId());
         }
 
         private static Validator sizeValidator(final long size) {
@@ -357,7 +201,7 @@ public interface UpdateHandler {
                 }
 
                 private void check() {
-                    final String actual = BaseEncoding.base16().lowerCase().encode(messageDigest.digest());
+                    final String actual = HexFormat.of().withLowerCase().formatHex(messageDigest.digest());
                     if (!actual.equals(expected)) {
                         throw new SecurityException(
                                 messageDigest.getAlgorithm() + " hash mismatch " + EXPECTED + expected + BUT_GOT_LOG_MESSAGE + actual + ")!");
@@ -377,6 +221,7 @@ public interface UpdateHandler {
             }
 
             return new Validator() {
+
                 @Override
                 public void read(final byte[] buff, final int len) {
                     hashValidators.forEach(hashValidator -> hashValidator.update(buff, len));
@@ -387,6 +232,74 @@ public interface UpdateHandler {
                     hashValidators.forEach(HashValidator::check);
                 }
             };
+        }
+
+        private void handleArtifact(
+                final List<UpdateStatus> status, final DmfArtifact artifact) {
+            if (artifact.getUrls().containsKey("HTTPS")) {
+                status.add(downloadUrl(Link.of(artifact.getUrls().get("HTTPS")), artifact.getHashes(), artifact.getSize()));
+            } else if (artifact.getUrls().containsKey("HTTP")) {
+                status.add(downloadUrl(Link.of(artifact.getUrls().get("HTTP")), artifact.getHashes(), artifact.getSize()));
+            }
+        }
+
+        private UpdateStatus downloadUrl(final Link link,  final DmfArtifactHash hash, final long size) {
+            if (log.isDebugEnabled()) {
+                log.debug(LOG_PREFIX + "Downloading {}, expected hash {} and size {}",
+                        dmfController.getTenant().getTenantId(), dmfController.getControllerId(), link.getHref(), hash, size);
+            }
+
+            try {
+                return readAndCheckDownloadUrl(link, hash, size);
+            } catch (final NoSuchAlgorithmException | IOException e) {
+                log.error(LOG_PREFIX + "Failed to download {}", dmfController.getTenant().getTenantId(), dmfController.getControllerId(), link.getHref(), e);
+                return new UpdateStatus(
+                        DmfActionStatus.ERROR,
+                        List.of("Failed to download " + link.getHref() + ": " + e.getMessage()));
+            }
+        }
+
+        private UpdateStatus readAndCheckDownloadUrl(final Link link, final DmfArtifactHash hash, final long size)
+                throws NoSuchAlgorithmException, IOException {
+            final Validator sizeValidator = sizeValidator(size);
+            final Validator hashValidator = hashValidator(hash);
+            final String href = link.getHref();
+            final ArtifactHandler.DownloadHandler downloadHandler = artifactHandler.getDownloadHandler(href);
+            return HawkbitClient.getLink(link, InputStream.class, dmfController.getTenant(), dmfController.getController(), is -> {
+                try {
+                    final byte[] buff = new byte[32 * 1024];
+                    for (int read; (read = is.read(buff)) != -1; ) {
+                        sizeValidator.read(buff, read);
+                        hashValidator.read(buff, read);
+                        downloadHandler.read(buff, 0, read);
+                    }
+                    sizeValidator.validate();
+                    hashValidator.validate();
+
+                    final String message = "Downloaded " + href + " (" + size + " bytes)";
+                    log.debug(LOG_PREFIX + message, dmfController.getTenant().getTenantId(), dmfController.getControllerId());
+                    downloadHandler.finished(ArtifactHandler.DownloadHandler.Status.SUCCESS);
+                    downloadHandler.download().ifPresent(path -> downloads.put(href, path));
+                    return new UpdateStatus(DmfActionStatus.FINISHED, List.of(message));
+                } catch (final Exception e) {
+                    final String message = e.getMessage();
+                    if (log.isTraceEnabled()) {
+                        log.error(LOG_PREFIX + DOWNLOAD_LOG_MESSAGE + "{} failed: {}",
+                                dmfController.getTenant().getTenantId(), dmfController.getControllerId(), href, message, e);
+                    } else {
+                        log.error(LOG_PREFIX + DOWNLOAD_LOG_MESSAGE + "{} failed: {}",
+                                dmfController.getTenant().getTenantId(), dmfController.getControllerId(), href, message);
+                    }
+                    downloadHandler.finished(ArtifactHandler.DownloadHandler.Status.ERROR);
+                    return new UpdateStatus(DmfActionStatus.ERROR, List.of(message));
+                }
+            });
+        }
+
+        private interface Validator {
+
+            void read(final byte[] buff, final int len);
+            void validate();
         }
     }
 }

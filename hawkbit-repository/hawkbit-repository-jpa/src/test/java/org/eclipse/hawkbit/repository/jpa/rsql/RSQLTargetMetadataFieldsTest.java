@@ -15,6 +15,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import io.qameta.allure.Description;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Story;
 import org.eclipse.hawkbit.repository.TargetMetadataFields;
 import org.eclipse.hawkbit.repository.jpa.AbstractJpaIntegrationTest;
 import org.eclipse.hawkbit.repository.model.MetaData;
@@ -25,17 +28,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
-import io.qameta.allure.Description;
-import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
-
 @Feature("Component Tests - Repository")
 @Story("RSQL filter target metadata")
-public class RSQLTargetMetadataFieldsTest extends AbstractJpaIntegrationTest {
+class RSQLTargetMetadataFieldsTest extends AbstractJpaIntegrationTest {
+
     private String controllerId;
 
     @BeforeEach
-    public void setupBeforeTest() {
+    void setupBeforeTest() {
         final Target target = testdataFactory.createTarget("target");
         controllerId = target.getControllerId();
 
@@ -52,7 +52,7 @@ public class RSQLTargetMetadataFieldsTest extends AbstractJpaIntegrationTest {
 
     @Test
     @Description("Test filter target metadata by key")
-    public void testFilterByParameterKey() {
+    void testFilterByParameterKey() {
         assertRSQLQuery(TargetMetadataFields.KEY.name() + "==1", 1);
         assertRSQLQuery(TargetMetadataFields.KEY.name() + "!=1", 5);
         assertRSQLQuery(TargetMetadataFields.KEY.name() + "=in=(1,2)", 2);
@@ -61,7 +61,7 @@ public class RSQLTargetMetadataFieldsTest extends AbstractJpaIntegrationTest {
 
     @Test
     @Description("Test filter target metadata by value")
-    public void testFilterByParameterValue() {
+    void testFilterByParameterValue() {
         assertRSQLQuery(TargetMetadataFields.VALUE.name() + "==''", 1);
         assertRSQLQuery(TargetMetadataFields.VALUE.name() + "!=''", 5);
         assertRSQLQuery(TargetMetadataFields.VALUE.name() + "==1", 1);

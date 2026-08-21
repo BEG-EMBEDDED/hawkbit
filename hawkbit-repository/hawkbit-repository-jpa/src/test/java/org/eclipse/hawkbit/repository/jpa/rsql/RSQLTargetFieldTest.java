@@ -17,6 +17,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.qameta.allure.Description;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Story;
 import org.assertj.core.util.Maps;
 import org.eclipse.hawkbit.repository.TargetFields;
 import org.eclipse.hawkbit.repository.TargetTypeFields;
@@ -31,21 +34,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Slice;
 
-import io.qameta.allure.Description;
-import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
-
 @Feature("Component Tests - Repository")
 @Story("RSQL filter target")
 class RSQLTargetFieldTest extends AbstractJpaIntegrationTest {
 
+    private static final String OR = ",";
+    private static final String AND = ";";
     private Target target;
     private Target target2;
     private TargetType targetType1;
     private TargetType targetType2;
-
-    private static final String OR = ",";
-    private static final String AND = ";";
 
     @BeforeEach
     void setupBeforeTest() {
@@ -106,8 +104,6 @@ class RSQLTargetFieldTest extends AbstractJpaIntegrationTest {
     @Description("Test filter target by (controller) id")
     void testFilterByParameterId() {
         assertRSQLQuery(TargetFields.ID.name() + "==targetId123", 1);
-        assertRSQLQuery(TargetFields.ID.name() + "==target*", 5);
-        assertRSQLQuery(TargetFields.ID.name() + "==noExist*", 0);
         assertRSQLQuery(TargetFields.ID.name() + "!=targetId123", 4);
         assertRSQLQuery(TargetFields.ID.name() + "=in=(targetId123,notexist)", 1);
         assertRSQLQuery(TargetFields.ID.name() + "=out=(targetId123,notexist)", 4);
@@ -153,12 +149,10 @@ class RSQLTargetFieldTest extends AbstractJpaIntegrationTest {
     void testFilterByParameterUpdateStatus() {
         assertRSQLQuery(TargetFields.UPDATESTATUS.name() + "==pending", 1);
         assertRSQLQuery(TargetFields.UPDATESTATUS.name() + "!=pending", 4);
-        try {
-            assertRSQLQuery(TargetFields.UPDATESTATUS.name() + "==noExist*", 0);
-            fail("RSQLParameterUnsupportedFieldException was expected since update status unknown");
-        } catch (final RSQLParameterUnsupportedFieldException e) {
-            // test ok - exception was excepted
-        }
+        final String rsqlNoExistStar = TargetFields.UPDATESTATUS.name() + "==noExist*";
+        assertThatExceptionOfType(RSQLParameterUnsupportedFieldException.class)
+                .as("update status unknown")
+                .isThrownBy(() -> assertRSQLQuery(rsqlNoExistStar, 0));
         assertRSQLQuery(TargetFields.UPDATESTATUS.name() + "=in=(pending,error)", 1);
         assertRSQLQuery(TargetFields.UPDATESTATUS.name() + "=out=(pending,error)", 4);
     }
@@ -338,9 +332,9 @@ class RSQLTargetFieldTest extends AbstractJpaIntegrationTest {
 
     private void assertRSQLQuery(final String rsqlParam, final long expectedTargets) {
         final Slice<Target> findTargetPage = targetManagement.findByRsql(PAGE, rsqlParam);
-        final long countTargetsAll = targetManagement.countByRsql(rsqlParam);
         assertThat(findTargetPage).isNotNull();
-        assertThat(findTargetPage.getNumberOfElements()).isEqualTo(countTargetsAll).isEqualTo(expectedTargets);
+        assertThat(findTargetPage.getNumberOfElements()).isEqualTo(expectedTargets);
+        assertThat(targetManagement.countByRsql(rsqlParam)).isEqualTo(expectedTargets);
     }
 
     private void assertRSQLQueryThrowsException(final String rsqlParam) {

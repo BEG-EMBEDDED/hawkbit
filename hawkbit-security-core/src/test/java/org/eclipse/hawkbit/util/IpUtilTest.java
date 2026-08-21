@@ -19,12 +19,11 @@ import java.net.URI;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-import org.eclipse.hawkbit.security.HawkbitSecurityProperties;
-import org.eclipse.hawkbit.security.HawkbitSecurityProperties.Clients;
-
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
+import org.eclipse.hawkbit.security.HawkbitSecurityProperties;
+import org.eclipse.hawkbit.security.HawkbitSecurityProperties.Clients;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 @Feature("Unit Tests - Security")
 @Story("IP Util Test")
-public class IpUtilTest {
+class IpUtilTest {
 
     private static final String X_FORWARDED_FOR = HawkbitSecurityProperties.Clients.X_FORWARDED_FOR;
     private static final String KNOWN_REQUEST_HEADER = "bumlux";
@@ -50,7 +49,7 @@ public class IpUtilTest {
 
     @Test
     @Description("Tests create uri from request")
-    public void getRemoteAddrFromRequestIfForwardedHeaderNotPresent() {
+    void getRemoteAddrFromRequestIfForwardedHeaderNotPresent() {
         final URI knownRemoteClientIP = IpUtil.createHttpUri("127.0.0.1");
         when(requestMock.getRemoteAddr()).thenReturn(knownRemoteClientIP.getHost());
 
@@ -65,7 +64,7 @@ public class IpUtilTest {
 
     @Test
     @Description("Tests create uri from request with masked IP when IP tracking is disabled")
-    public void maskRemoteAddrIfDisabled() {
+    void maskRemoteAddrIfDisabled() {
         final URI knownRemoteClientIP = IpUtil.createHttpUri("***");
         when(securityPropertyMock.getClients()).thenReturn(clientMock);
         when(clientMock.getRemoteIpHeader()).thenReturn(KNOWN_REQUEST_HEADER);
@@ -81,7 +80,7 @@ public class IpUtilTest {
 
     @Test
     @Description("Tests create uri from x forward header")
-    public void getRemoteAddrFromXForwardedForHeader() {
+    void getRemoteAddrFromXForwardedForHeader() {
         final URI knownRemoteClientIP = IpUtil.createHttpUri("10.99.99.1");
         when(requestMock.getHeader(X_FORWARDED_FOR)).thenReturn(knownRemoteClientIP.getHost());
 
@@ -95,7 +94,7 @@ public class IpUtilTest {
 
     @Test
     @Description("Tests client uri from request")
-    public void testCreateClientHttpUri() {
+    void testCreateClientHttpUri() {
         checkHostInfoResolution("0:0:0:0:0:0:0:1", "[0:0:0:0:0:0:0:1]", true);
         checkHostInfoResolution("127.0.0.1", "127.0.0.1", true);
         checkHostInfoResolution("127.0.0.1:93493", "127.0.0.1", true);
@@ -108,7 +107,7 @@ public class IpUtilTest {
 
     @Test
     @Description("Tests client uri from request")
-    public void testResolveClientIpFromHeader() {
+    void testResolveClientIpFromHeader() {
         checkHostInfoResolution("0:0:0:0:0:0:0:1", "[0:0:0:0:0:0:0:1]", false);
         checkHostInfoResolution("127.0.0.1", "127.0.0.1", false);
         checkHostInfoResolution("127.0.0.1:93493", "127.0.0.1", false);
@@ -116,24 +115,9 @@ public class IpUtilTest {
         checkHostInfoResolution("[0:0:0:0:0:0:0:1]:4233", "[0:0:0:0:0:0:0:1]", false);
     }
 
-    private void checkHostInfoResolution(final String hostInfo, final String expectedHost, final boolean remoteAddress) {
-        reset(requestMock);
-        when(remoteAddress ? requestMock.getRemoteAddr() : requestMock.getHeader(KNOWN_REQUEST_HEADER)).thenReturn(hostInfo);
-
-        final URI remoteAddr = IpUtil.getClientIpFromRequest(requestMock, KNOWN_REQUEST_HEADER);
-
-        // verify
-        assertThat(remoteAddr.getHost()).as("The remote address should be as the known client IP address")
-                .isEqualTo(expectedHost);
-        verify(requestMock, times(1)).getHeader(KNOWN_REQUEST_HEADER);
-        if (remoteAddress) {
-            verify(requestMock, times(1)).getRemoteAddr();
-        }
-    }
-
     @Test
     @Description("Tests create http uri ipv4 and ipv6")
-    public void testCreateHttpUri() {
+    void testCreateHttpUri() {
         final String ipv4 = "10.99.99.1";
         URI httpUri = IpUtil.createHttpUri(ipv4);
         assertHttpUri(ipv4, httpUri);
@@ -147,16 +131,9 @@ public class IpUtilTest {
         assertHttpUri("[" + ipv6 + "]", httpUri);
     }
 
-    private void assertHttpUri(final String host, final URI httpUri) {
-        assertThat(IpUtil.isHttpUri(httpUri)).as("The given URI has an http scheme").isTrue();
-        assertThat(IpUtil.isAmqpUri(httpUri)).as("The given URI is not an AMQP scheme").isFalse();
-        assertThat(host).as("The URI hosts matches the given host").isEqualTo(httpUri.getHost());
-        assertThat(httpUri.getScheme()).as("The given URI scheme is http").isEqualTo("http");
-    }
-
     @Test
     @Description("Tests create amqp uri ipv4 and ipv6")
-    public void testCreateAmqpUri() {
+    void testCreateAmqpUri() {
         final String ipv4 = "10.99.99.1";
         URI amqpUri = IpUtil.createAmqpUri(ipv4, "path");
         assertAmqpUri(ipv4, amqpUri);
@@ -181,18 +158,9 @@ public class IpUtilTest {
         assertAmqpUri(ipv6Braces, amqpUri);
     }
 
-    private void assertAmqpUri(final String host, final URI amqpUri) {
-
-        assertThat(IpUtil.isAmqpUri(amqpUri)).as("The given URI is an AMQP scheme").isTrue();
-        assertThat(IpUtil.isHttpUri(amqpUri)).as("The given URI is not an HTTP scheme").isFalse();
-        assertThat(amqpUri.getHost()).as("The given host matches the URI host").isEqualTo(host);
-        assertThat(amqpUri.getScheme()).as("The given URI has an AMQP scheme").isEqualTo("amqp");
-        assertThat(amqpUri.getRawPath()).as("The given URI has an AMQP path").isEqualTo("/path");
-    }
-
     @Test
     @Description("Tests create invalid uri")
-    public void testCreateInvalidUri() {
+    void testCreateInvalidUri() {
 
         final String host = "10.99.99.1";
         final URI testUri = IpUtil.createUri("test", host);
@@ -207,5 +175,36 @@ public class IpUtilTest {
         } catch (final IllegalArgumentException e) {
             // expected
         }
+    }
+
+    private void checkHostInfoResolution(final String hostInfo, final String expectedHost, final boolean remoteAddress) {
+        reset(requestMock);
+        when(remoteAddress ? requestMock.getRemoteAddr() : requestMock.getHeader(KNOWN_REQUEST_HEADER)).thenReturn(hostInfo);
+
+        final URI remoteAddr = IpUtil.getClientIpFromRequest(requestMock, KNOWN_REQUEST_HEADER);
+
+        // verify
+        assertThat(remoteAddr.getHost()).as("The remote address should be as the known client IP address")
+                .isEqualTo(expectedHost);
+        verify(requestMock, times(1)).getHeader(KNOWN_REQUEST_HEADER);
+        if (remoteAddress) {
+            verify(requestMock, times(1)).getRemoteAddr();
+        }
+    }
+
+    private void assertHttpUri(final String host, final URI httpUri) {
+        assertThat(IpUtil.isHttpUri(httpUri)).as("The given URI has an http scheme").isTrue();
+        assertThat(IpUtil.isAmqpUri(httpUri)).as("The given URI is not an AMQP scheme").isFalse();
+        assertThat(host).as("The URI hosts matches the given host").isEqualTo(httpUri.getHost());
+        assertThat(httpUri.getScheme()).as("The given URI scheme is http").isEqualTo("http");
+    }
+
+    private void assertAmqpUri(final String host, final URI amqpUri) {
+
+        assertThat(IpUtil.isAmqpUri(amqpUri)).as("The given URI is an AMQP scheme").isTrue();
+        assertThat(IpUtil.isHttpUri(amqpUri)).as("The given URI is not an HTTP scheme").isFalse();
+        assertThat(amqpUri.getHost()).as("The given host matches the URI host").isEqualTo(host);
+        assertThat(amqpUri.getScheme()).as("The given URI has an AMQP scheme").isEqualTo("amqp");
+        assertThat(amqpUri.getRawPath()).as("The given URI has an AMQP path").isEqualTo("/path");
     }
 }

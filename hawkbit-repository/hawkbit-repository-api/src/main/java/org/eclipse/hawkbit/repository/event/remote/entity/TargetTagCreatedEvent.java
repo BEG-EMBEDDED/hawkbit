@@ -9,31 +9,26 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import java.io.Serial;
+
+import lombok.NoArgsConstructor;
 import org.eclipse.hawkbit.repository.event.entity.EntityCreatedEvent;
 import org.eclipse.hawkbit.repository.model.TargetTag;
 
 /**
  * Defines the remote event for the creation of a new {@link TargetTag}.
- *
  */
+@NoArgsConstructor // for serialization libs like jackson
 public class TargetTagCreatedEvent extends RemoteEntityEvent<TargetTag> implements EntityCreatedEvent {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**
-     * Default constructor.
-     */
-    public TargetTagCreatedEvent() {
-        // for serialization libs like jackson
-    }
-
-    /**
      * Constructor.
-     * 
-     * @param tag
-     *            the tag which is deleted
-     * @param applicationId
-     *            the origin application id
+     *
+     * @param tag the tag which is deleted
+     * @param applicationId the origin application id
      */
     public TargetTagCreatedEvent(final TargetTag tag, final String applicationId) {
         super(tag, applicationId);

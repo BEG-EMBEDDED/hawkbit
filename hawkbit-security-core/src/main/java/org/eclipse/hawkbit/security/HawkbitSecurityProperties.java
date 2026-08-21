@@ -17,8 +17,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Security related hawkbit configuration.
- *
+ * Security related hawkBit configuration.
  */
 @Data
 @ConfigurationProperties("hawkbit.server.security")
@@ -28,10 +27,6 @@ public class HawkbitSecurityProperties {
     private final Dos dos = new Dos();
     private final Cors cors = new Cors();
 
-    /**
-     * Content Security policy Header for Manager UI.
-     */
-    private String contentSecurityPolicy;
     /**
      * Secure access enforced.
      */
@@ -49,6 +44,10 @@ public class HawkbitSecurityProperties {
      * Basic authentication realm, see https://tools.ietf.org/html/rfc2617#page-3 .
      */
     private String basicRealm = "hawkBit";
+    /**
+     * If to allow http authentication when there is OAuth2 authentication enabled.
+     */
+    private boolean allowHttpBasicOnOAuthEnabled = false;
 
     /**
      * Security configuration related to CORS.
@@ -105,6 +104,8 @@ public class HawkbitSecurityProperties {
     @Data
     public static class Dos {
 
+        private final Filter filter = new Filter();
+        private final Filter uiFilter = new Filter();
         /**
          * Maximum number of status updates that the controller can report for
          * an action (0 to disable).
@@ -176,9 +177,6 @@ public class HawkbitSecurityProperties {
          * Maximum number of distribution set types per target types
          */
         private int maxDistributionSetTypesPerTargetType = 50;
-
-        private final Filter filter = new Filter();
-        private final Filter uiFilter = new Filter();
 
         /**
          * Configuration for hawkBits DOS prevention filter. This is usually an

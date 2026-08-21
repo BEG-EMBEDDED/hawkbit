@@ -27,27 +27,26 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.data.jpa.domain.Specification;
-
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.jpa.domain.Specification;
 
 @Feature("Unit Tests - Repository")
 @Story("Specifications builder")
-public class SpecificationsBuilderTest {
+class SpecificationsBuilderTest {
 
     @Test
     @Description("Test the combination of specs on an empty list which returns null")
-    public void combineWithAndEmptyList() {
+    void combineWithAndEmptyList() {
         final List<Specification<Object>> specList = Collections.emptyList();
         assertThat(SpecificationsBuilder.combineWithAnd(specList)).isNull();
     }
 
     @Test
     @Description("Test the combination of specs on an immutable list with one entry")
-    public void combineWithAndSingleImmutableList() {
+    void combineWithAndSingleImmutableList() {
         final Specification<Object> spec = (root, query, cb) -> cb.equal(root.get("field1"), "testValue");
         final List<Specification<Object>> specList = Collections.singletonList(spec);
         final Specification<Object> specifications = SpecificationsBuilder.combineWithAnd(specList);
@@ -71,7 +70,7 @@ public class SpecificationsBuilderTest {
 
     @Test
     @Description("Test the combination of specs on a list with multiple entries")
-    public void combineWithAndList() {
+    void combineWithAndList() {
         final Specification<Object> spec1 = (root, query, cb) -> cb.equal(root.get("field1"), "testValue1");
         final Specification<Object> spec2 = (root, query, cb) -> cb.equal(root.get("field2"), "testValue2");
 
@@ -94,7 +93,7 @@ public class SpecificationsBuilderTest {
 
         when(criteriaBuilder.equal(any(Path.class), eq("testValue1"))).thenReturn(equalPredicate1);
         when(criteriaBuilder.equal(any(Path.class), eq("testValue2"))).thenReturn(equalPredicate2);
-        when(criteriaBuilder.and(eq(equalPredicate1), eq(equalPredicate2))).thenReturn(combinedPredicate);
+        when(criteriaBuilder.and(equalPredicate1, equalPredicate2)).thenReturn(combinedPredicate);
         when(root.get("field1")).thenReturn(field1);
         when(root.get("field2")).thenReturn(field2);
 

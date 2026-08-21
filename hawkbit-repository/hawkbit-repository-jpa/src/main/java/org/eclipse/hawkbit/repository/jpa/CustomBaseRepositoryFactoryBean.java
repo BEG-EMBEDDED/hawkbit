@@ -16,35 +16,33 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
+import org.springframework.lang.NonNull;
 
 /**
- * A {@link JpaRepositoryFactoryBean} extension that allow injection of custom
- * repository factories by using a {@link BaseRepositoryTypeProvider}
- * implementation, allows injecting different base repository implementations based on repository type
- * 
- * @param <T>
- * @param <S>
- * @param <ID>
+ * A {@link JpaRepositoryFactoryBean} extension that allow injection of custom repository factories by using a
+ * {@link BaseRepositoryTypeProvider} implementation, allows injecting different base repository implementations based on repository type
  */
-public class CustomBaseRepositoryFactoryBean<T extends Repository<S, ID>, S, ID>
-        extends JpaRepositoryFactoryBean<T, S, ID> {
+@SuppressWarnings("java:S119") // java:S119 - ID is inherited from JpaRepositoryFactoryBean
+public class CustomBaseRepositoryFactoryBean<T extends Repository<S, ID>, S, ID> extends JpaRepositoryFactoryBean<T, S, ID> {
 
-    @Autowired
-    BaseRepositoryTypeProvider baseRepoProvider;
+    private BaseRepositoryTypeProvider baseRepoProvider;
 
     /**
-     * Creates a new {@link JpaRepositoryFactoryBean} for the given repository
-     * interface.
+     * Creates a new {@link JpaRepositoryFactoryBean} for the given repository interface.
      *
-     * @param repositoryInterface
-     *            must not be {@literal null}.
+     * @param repositoryInterface must not be {@literal null}.
      */
     public CustomBaseRepositoryFactoryBean(final Class<? extends T> repositoryInterface) {
         super(repositoryInterface);
     }
 
+    @Autowired // if it is a constructor injection sometimes doesn't work - base repo provider is not available at construct time
+    public void setBaseRepoProvider(final BaseRepositoryTypeProvider baseRepoProvider) {
+        this.baseRepoProvider = baseRepoProvider;
+    }
+
     @Override
-    protected RepositoryFactorySupport createRepositoryFactory(final EntityManager entityManager) {
+    protected RepositoryFactorySupport createRepositoryFactory(@NonNull final EntityManager entityManager) {
         final RepositoryFactorySupport rfs = super.createRepositoryFactory(entityManager);
         rfs.setRepositoryBaseClass(baseRepoProvider.getBaseRepositoryType(getObjectType()));
         return rfs;

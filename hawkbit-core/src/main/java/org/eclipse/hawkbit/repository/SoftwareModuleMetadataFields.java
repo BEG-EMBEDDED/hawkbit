@@ -9,42 +9,26 @@
  */
 package org.eclipse.hawkbit.repository;
 
+import lombok.Getter;
+
 /**
  * Sort fields for SoftwareModuleMetadata.
- *
- *
- *
- *
  */
-public enum SoftwareModuleMetadataFields implements FieldNameProvider {
+@Getter
+public enum SoftwareModuleMetadataFields implements RsqlQueryField {
 
-    /**
-     * The value field.
-     */
-    VALUE("value"),
-    /**
-     * The key field.
-     */
     KEY("key"),
-
-    /**
-     * The target visible field.
-     */
+    VALUE("value"),
     TARGETVISIBLE("targetVisible");
 
-    private final String fieldName;
+    private final String jpaEntityFieldName;
 
-    private SoftwareModuleMetadataFields(final String fieldName) {
-        this.fieldName = fieldName;
-    }
-
-    @Override
-    public String getFieldName() {
-        return fieldName;
+    SoftwareModuleMetadataFields(final String jpaEntityFieldName) {
+        this.jpaEntityFieldName = jpaEntityFieldName;
     }
 
     @Override
     public String identifierFieldName() {
-        return KEY.getFieldName();
+        return KEY.getJpaEntityFieldName();
     }
 }

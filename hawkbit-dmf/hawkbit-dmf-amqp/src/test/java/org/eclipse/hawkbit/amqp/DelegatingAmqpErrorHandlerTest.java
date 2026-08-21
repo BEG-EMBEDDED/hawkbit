@@ -11,46 +11,43 @@ package org.eclipse.hawkbit.amqp;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.util.List;
+
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.util.ErrorHandler;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Feature("Unit Tests - Delegating Conditional Error Handler")
 @Story("Delegating Conditional Error Handler")
-public class DelegatingAmqpErrorHandlerTest {
+class DelegatingAmqpErrorHandlerTest {
+
+    private final DelegatingConditionalErrorHandler delegatingConditionalErrorHandler =
+            new DelegatingConditionalErrorHandler(
+                    List.of(new IllegalArgumentExceptionHandler(), new IndexOutOfBoundsExceptionHandler()),
+                    new DefaultErrorHandler());
 
     @Test
     @Description("Verifies that with a list of conditional error handlers, the error is delegated to specific handler.")
-    public void verifyDelegationHandling(){
-        List<AmqpErrorHandler> handlers = new ArrayList<>();
-        handlers.add(new IllegalArgumentExceptionHandler());
-        handlers.add(new IndexOutOfBoundsExceptionHandler());
+    void verifyDelegationHandling() {
+        final Throwable error = new Throwable(new IllegalArgumentException());
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .as("Expected handled exception to be of type IllegalArgumentException")
-                .isThrownBy(() -> new DelegatingConditionalErrorHandler(handlers, new DefaultErrorHandler())
-                                .handleError(new Throwable(new IllegalArgumentException())));
+                .isThrownBy(() -> delegatingConditionalErrorHandler.handleError(error));
     }
 
     @Test
     @Description("Verifies that default handler is used if no handlers are defined for the specific exception.")
-    public void verifyDefaultDelegationHandling(){
-        List<AmqpErrorHandler> handlers = new ArrayList<>();
-        handlers.add(new IllegalArgumentExceptionHandler());
-        handlers.add(new IndexOutOfBoundsExceptionHandler());
+    void verifyDefaultDelegationHandling() {
+        final Throwable error = new Throwable(new NullPointerException());
         assertThatExceptionOfType(RuntimeException.class)
                 .as("Expected handled exception to be of type RuntimeException")
-                .isThrownBy(() -> new DelegatingConditionalErrorHandler(handlers, new DefaultErrorHandler())
-                        .handleError(new Throwable(new NullPointerException())));
+                .isThrownBy(() -> delegatingConditionalErrorHandler.handleError(error));
     }
 
     // Test class
-    public class IllegalArgumentExceptionHandler implements AmqpErrorHandler {
+    static class IllegalArgumentExceptionHandler implements AmqpErrorHandler {
 
         @Override
         public void doHandle(final Throwable t, final AmqpErrorHandlerChain chain) {
@@ -63,7 +60,7 @@ public class DelegatingAmqpErrorHandlerTest {
     }
 
     // Test class
-    public class IndexOutOfBoundsExceptionHandler implements AmqpErrorHandler {
+    static class IndexOutOfBoundsExceptionHandler implements AmqpErrorHandler {
 
         @Override
         public void doHandle(final Throwable t, final AmqpErrorHandlerChain chain) {
@@ -76,11 +73,10 @@ public class DelegatingAmqpErrorHandlerTest {
     }
 
     // Test class
-    public class DefaultErrorHandler implements ErrorHandler {
+    static class DefaultErrorHandler implements ErrorHandler {
 
         @Override
-        public void
-        handleError(Throwable t) {
+        public void handleError(final Throwable t) {
             throw new RuntimeException(t);
         }
     }

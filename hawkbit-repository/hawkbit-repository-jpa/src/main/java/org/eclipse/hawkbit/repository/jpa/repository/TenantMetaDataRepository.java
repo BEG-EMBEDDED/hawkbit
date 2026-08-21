@@ -9,12 +9,11 @@
  */
 package org.eclipse.hawkbit.repository.jpa.repository;
 
-import java.util.List;
-
 import org.eclipse.hawkbit.repository.jpa.model.JpaTenantMetaData;
 import org.eclipse.hawkbit.repository.model.TenantMetaData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -23,30 +22,21 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * repository for operations on {@link TenantMetaData} entity.
- *
+ * Repository for operations on {@link TenantMetaData} entity.
  */
 @Transactional(readOnly = true)
-public interface TenantMetaDataRepository
-        extends PagingAndSortingRepository<JpaTenantMetaData, Long>,
-        CrudRepository<JpaTenantMetaData, Long> {
+public interface TenantMetaDataRepository extends PagingAndSortingRepository<JpaTenantMetaData, Long>, CrudRepository<JpaTenantMetaData, Long> {
 
-    /**
-     * Search {@link TenantMetaData} by tenant name.
-     *
-     * @param tenant
-     *            to search for
-     * @return found {@link TenantMetaData} or <code>null</code>
-     */
+    // find without details
     TenantMetaData findByTenantIgnoreCase(String tenant);
 
-    @Transactional
+    // find with details
+    @EntityGraph(value = "TenantMetaData.withDetails", type = EntityGraph.EntityGraphType.LOAD)
+    TenantMetaData findWitDetailsByTenantIgnoreCase(String tenant);
+
     @Query("SELECT  t.tenant FROM JpaTenantMetaData t")
     Page<String> findTenants(final Pageable pageable);
 
-    /**
-     * @param tenant
-     */
     @Transactional
     @Modifying
     @Query("DELETE FROM JpaTenantMetaData t WHERE UPPER(t.tenant) = UPPER(:tenant)")

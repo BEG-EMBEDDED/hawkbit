@@ -15,29 +15,29 @@ import org.eclipse.hawkbit.repository.jpa.repository.LocalArtifactRepository;
 import org.eclipse.hawkbit.repository.jpa.repository.TargetRepository;
 import org.eclipse.hawkbit.repository.report.model.TenantUsage;
 import org.eclipse.hawkbit.tenancy.TenantAware;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 /**
  * Management service for statistics of a single tenant.
- *
  */
 @Validated
 public class JpaTenantStatsManagement implements TenantStatsManagement {
 
-    @Autowired
-    private TargetRepository targetRepository;
+    private final TargetRepository targetRepository;
+    private final LocalArtifactRepository artifactRepository;
+    private final ActionRepository actionRepository;
+    private final TenantAware tenantAware;
 
-    @Autowired
-    private LocalArtifactRepository artifactRepository;
-
-    @Autowired
-    private ActionRepository actionRepository;
-
-    @Autowired
-    private TenantAware tenantAware;
+    public JpaTenantStatsManagement(
+            final TargetRepository targetRepository, final LocalArtifactRepository artifactRepository, final ActionRepository actionRepository,
+            final TenantAware tenantAware) {
+        this.targetRepository = targetRepository;
+        this.artifactRepository = artifactRepository;
+        this.actionRepository = actionRepository;
+        this.tenantAware = tenantAware;
+    }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)

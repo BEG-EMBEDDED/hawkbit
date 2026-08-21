@@ -9,42 +9,23 @@
  */
 package org.eclipse.hawkbit.repository;
 
+import lombok.Getter;
+
 /**
  * Describing the fields of the DistributionSetType model which can be used in
  * the REST API e.g. for sorting etc.
- *
- *
- *
- *
  */
-public enum DistributionSetTypeFields implements FieldNameProvider {
-    /**
-     * The name field.
-     */
-    NAME("name"),
-    /**
-     * The description field.
-     */
-    DESCRIPTION("description"),
+@Getter
+public enum DistributionSetTypeFields implements RsqlQueryField {
 
-    /**
-     * The type key field.
-     */
+    ID("id"),
     KEY("key"),
+    NAME("name"),
+    DESCRIPTION("description");
 
-    /**
-     * The id field.
-     */
-    ID("id");
+    private final String jpaEntityFieldName;
 
-    private final String fieldName;
-
-    private DistributionSetTypeFields(final String fieldName) {
-        this.fieldName = fieldName;
-    }
-
-    @Override
-    public String getFieldName() {
-        return fieldName;
+    DistributionSetTypeFields(final String jpaEntityFieldName) {
+        this.jpaEntityFieldName = jpaEntityFieldName;
     }
 }

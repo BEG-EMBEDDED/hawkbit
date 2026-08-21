@@ -23,7 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.util.StringUtils;
+import org.springframework.util.ObjectUtils;
 
 /**
  * Default implementation of {@link RolloutApprovalStrategy}. Decides whether
@@ -57,6 +57,30 @@ public class DefaultRolloutApprovalStrategy implements RolloutApprovalStrategy {
         return isApprovalEnabled() && hasNoApproveRolloutPermission(getActorAuthorities(rollout));
     }
 
+    /***
+     * Per default do nothing.
+     *
+     * @param rollout
+     *            rollout to create approval task for.
+     */
+    @Override
+    public void onApprovalRequired(final Rollout rollout) {
+        // do nothing per default, can be extended by further implementations.
+    }
+
+    @Override
+    public String getApprovalUser(final Rollout rollout) {
+        return getCurrentAuthentication().getName();
+    }
+
+    private static Authentication getCurrentAuthentication() {
+        return SecurityContextHolder.getContext().getAuthentication();
+    }
+
+    private static boolean hasNoApproveRolloutPermission(final Collection<String> authorities) {
+        return authorities.stream().noneMatch(SpPermission.APPROVE_ROLLOUT::equals);
+    }
+
     private boolean isApprovalEnabled() {
         return systemSecurityContext.runAsSystem(() -> tenantConfigurationManagement
                 .getConfigurationValue(TenantConfigurationKey.ROLLOUT_APPROVAL_ENABLED, Boolean.class).getValue());
@@ -69,7 +93,7 @@ public class DefaultRolloutApprovalStrategy implements RolloutApprovalStrategy {
         if (RolloutStatus.CREATING == rollout.getStatus()) {
             final String actor = rollout.getLastModifiedBy() != null ? rollout.getLastModifiedBy()
                     : rollout.getCreatedBy();
-            if (!StringUtils.isEmpty(actor)) {
+            if (!ObjectUtils.isEmpty(actor)) {
                 return systemSecurityContext.runAsSystem(
                         () -> userAuthoritiesResolver.getUserAuthorities(rollout.getTenant(), actor));
             }
@@ -77,29 +101,5 @@ public class DefaultRolloutApprovalStrategy implements RolloutApprovalStrategy {
 
         return ((User) getCurrentAuthentication().getPrincipal()).getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority).toList();
-    }
-
-    private static Authentication getCurrentAuthentication() {
-        return SecurityContextHolder.getContext().getAuthentication();
-    }
-
-    private static boolean hasNoApproveRolloutPermission(final Collection<String> authorities) {
-        return authorities.stream().noneMatch(SpPermission.APPROVE_ROLLOUT::equals);
-    }
-
-    /***
-     * Per default do nothing.
-     * 
-     * @param rollout
-     *            rollout to create approval task for.
-     */
-    @Override
-    public void onApprovalRequired(final Rollout rollout) {
-        // do nothing per default, can be extended by further implementations.
-    }
-
-    @Override
-    public String getApprovalUser(final Rollout rollout) {
-        return getCurrentAuthentication().getName();
     }
 }

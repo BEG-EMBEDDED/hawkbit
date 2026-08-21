@@ -12,7 +12,6 @@ package org.eclipse.hawkbit.repository.event.remote;
 import java.io.Serial;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -37,23 +36,17 @@ public class TargetAssignDistributionSetEvent extends AbstractAssignmentEvent {
 
     /**
      * Constructor.
-     * 
-     * @param tenant
-     *            of the event
-     * @param distributionSetId
-     *            of the set that was assigned
-     * @param a
-     *            the actions and the targets
-     * @param applicationId
-     *            the application id.
-     * @param maintenanceWindowAvailable
-     *            see {@link Action#isMaintenanceWindowAvailable()}
+     *
+     * @param tenant of the event
+     * @param distributionSetId of the set that was assigned
+     * @param a the actions and the targets
+     * @param applicationId the application id.
+     * @param maintenanceWindowAvailable see {@link Action#isMaintenanceWindowAvailable()}
      */
     public TargetAssignDistributionSetEvent(final String tenant, final long distributionSetId, final List<Action> a,
             final String applicationId, final boolean maintenanceWindowAvailable) {
         super(distributionSetId, tenant,
-                a.stream().filter(action -> action.getDistributionSet().getId().longValue() == distributionSetId)
-                        .collect(Collectors.toList()),
+                a.stream().filter(action -> action.getDistributionSet().getId().longValue() == distributionSetId).toList(),
                 applicationId);
         this.distributionSetId = distributionSetId;
         this.maintenanceWindowAvailable = maintenanceWindowAvailable;
@@ -62,10 +55,8 @@ public class TargetAssignDistributionSetEvent extends AbstractAssignmentEvent {
     /**
      * Constructor.
      *
-     * @param action
-     *            the action created for this assignment
-     * @param applicationId
-     *            the application id
+     * @param action the action created for this assignment
+     * @param applicationId the application id
      */
     public TargetAssignDistributionSetEvent(final Action action, final String applicationId) {
         this(action.getTenant(), action.getDistributionSet().getId(), Collections.singletonList(action), applicationId,

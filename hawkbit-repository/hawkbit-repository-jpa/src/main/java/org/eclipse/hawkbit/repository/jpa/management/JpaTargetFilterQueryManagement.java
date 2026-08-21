@@ -16,7 +16,9 @@ import java.util.Optional;
 
 import jakarta.validation.constraints.NotNull;
 
+import cz.jirutka.rsql.parser.RSQLParserException;
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.hawkbit.ContextAware;
 import org.eclipse.hawkbit.repository.DistributionSetManagement;
 import org.eclipse.hawkbit.repository.QuotaManagement;
 import org.eclipse.hawkbit.repository.RepositoryProperties;
@@ -25,7 +27,6 @@ import org.eclipse.hawkbit.repository.TargetFilterQueryFields;
 import org.eclipse.hawkbit.repository.TargetFilterQueryManagement;
 import org.eclipse.hawkbit.repository.TargetManagement;
 import org.eclipse.hawkbit.repository.TenantConfigurationManagement;
-import org.eclipse.hawkbit.ContextAware;
 import org.eclipse.hawkbit.repository.builder.AutoAssignDistributionSetUpdate;
 import org.eclipse.hawkbit.repository.builder.GenericTargetFilterQueryUpdate;
 import org.eclipse.hawkbit.repository.builder.TargetFilterQueryCreate;
@@ -64,8 +65,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 import org.springframework.validation.annotation.Validated;
 
-import cz.jirutka.rsql.parser.RSQLParserException;
-
 /**
  * JPA implementation of {@link TargetFilterQueryManagement}.
  */
@@ -86,6 +85,7 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
     private final AuditorAware<String> auditorAware;
     private final Database database;
 
+    @SuppressWarnings("java:S107")
     public JpaTargetFilterQueryManagement(final TargetFilterQueryRepository targetFilterQueryRepository,
             final TargetManagement targetManagement, final VirtualPropertyReplacer virtualPropertyReplacer,
             final DistributionSetManagement distributionSetManagement, final QuotaManagement quotaManagement,
@@ -107,8 +107,8 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
 
     @Override
     @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
     public TargetFilterQuery create(final TargetFilterQueryCreate c) {
         final JpaTargetFilterQueryCreate create = (JpaTargetFilterQueryCreate) c;
 
@@ -130,14 +130,25 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
 
     @Override
     @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
     public void delete(final long targetFilterQueryId) {
         if (!targetFilterQueryRepository.existsById(targetFilterQueryId)) {
             throw new EntityNotFoundException(TargetFilterQuery.class, targetFilterQueryId);
         }
 
         targetFilterQueryRepository.deleteById(targetFilterQueryId);
+    }
+
+    @Override
+    public boolean verifyTargetFilterQuerySyntax(final String query) {
+        try {
+            RSQLUtility.validateRsqlFor(query, TargetFields.class);
+            return true;
+        } catch (final RSQLParserException | RSQLParameterUnsupportedFieldException e) {
+            log.debug("The RSQL query '{}}' is invalid.", query, e);
+            return false;
+        }
     }
 
     @Override
@@ -179,10 +190,10 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
     public Page<TargetFilterQuery> findByRsql(final Pageable pageable, final String rsqlFilter) {
         final List<Specification<JpaTargetFilterQuery>> specList = !ObjectUtils.isEmpty(rsqlFilter)
                 ? Collections.singletonList(RSQLUtility.buildRsqlSpecification(rsqlFilter,
-                        TargetFilterQueryFields.class, virtualPropertyReplacer, database))
+                TargetFilterQueryFields.class, virtualPropertyReplacer, database))
                 : Collections.emptyList();
 
-        return JpaManagementHelper.findAllWithCountBySpec(targetFilterQueryRepository, pageable, specList);
+        return JpaManagementHelper.findAllWithCountBySpec(targetFilterQueryRepository, specList, pageable);
     }
 
     @Override
@@ -215,7 +226,7 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
                     virtualPropertyReplacer, database));
         }
 
-        return JpaManagementHelper.findAllWithCountBySpec(targetFilterQueryRepository, pageable, specList);
+        return JpaManagementHelper.findAllWithCountBySpec(targetFilterQueryRepository, specList, pageable);
     }
 
     @Override
@@ -225,13 +236,13 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
     }
 
     @Override
-    public Optional<TargetFilterQuery> getByName(final String targetFilterQueryName) {
-        return targetFilterQueryRepository.findByName(targetFilterQueryName);
+    public Optional<TargetFilterQuery> get(final long targetFilterQueryId) {
+        return targetFilterQueryRepository.findById(targetFilterQueryId).map(TargetFilterQuery.class::cast);
     }
 
     @Override
-    public Optional<TargetFilterQuery> get(final long targetFilterQueryId) {
-        return targetFilterQueryRepository.findById(targetFilterQueryId).map(TargetFilterQuery.class::cast);
+    public Optional<TargetFilterQuery> getByName(final String targetFilterQueryName) {
+        return targetFilterQueryRepository.findByName(targetFilterQueryName);
     }
 
     @Override
@@ -279,7 +290,7 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
             final JpaDistributionSet distributionSet = (JpaDistributionSet) distributionSetManagement
                     .getValidAndComplete(update.getDsId());
 
-            if (((JpaDistributionSetManagement)distributionSetManagement).isImplicitLockApplicable(distributionSet)) {
+            if (((JpaDistributionSetManagement) distributionSetManagement).isImplicitLockApplicable(distributionSet)) {
                 distributionSetManagement.lock(distributionSet.getId());
             }
 
@@ -298,9 +309,11 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
         return targetFilterQueryRepository.save(targetFilterQuery);
     }
 
-    private boolean isConfirmationFlowEnabled() {
-        return TenantConfigHelper.usingContext(systemSecurityContext, tenantConfigurationManagement)
-                .isConfirmationFlowEnabled();
+    @Override
+    @Transactional
+    public void cancelAutoAssignmentForDistributionSet(final long distributionSetId) {
+        targetFilterQueryRepository.unsetAutoAssignDistributionSetAndActionTypeAndAccessContext(distributionSetId);
+        log.debug("Auto assignments for distribution sets {} deactivated", distributionSetId);
     }
 
     private static ActionType sanitizeAutoAssignActionType(final ActionType actionType) {
@@ -315,32 +328,19 @@ public class JpaTargetFilterQueryManagement implements TargetFilterQueryManageme
         return actionType;
     }
 
+    private boolean isConfirmationFlowEnabled() {
+        return TenantConfigHelper.usingContext(systemSecurityContext, tenantConfigurationManagement)
+                .isConfirmationFlowEnabled();
+    }
+
     private JpaTargetFilterQuery findTargetFilterQueryOrThrowExceptionIfNotFound(final Long queryId) {
         return targetFilterQueryRepository.findById(queryId)
                 .orElseThrow(() -> new EntityNotFoundException(TargetFilterQuery.class, queryId));
-    }
-
-    @Override
-    public boolean verifyTargetFilterQuerySyntax(final String query) {
-        try {
-            RSQLUtility.validateRsqlFor(query, TargetFields.class);
-            return true;
-        } catch (final RSQLParserException | RSQLParameterUnsupportedFieldException e) {
-            log.debug("The RSQL query '" + query + "' is invalid.", e);
-            return false;
-        }
     }
 
     private void assertMaxTargetsQuota(final String query, final String filterName, final long dsId) {
         QuotaHelper.assertAssignmentQuota(filterName,
                 targetManagement.countByRsqlAndNonDSAndCompatibleAndUpdatable(dsId, query),
                 quotaManagement.getMaxTargetsPerAutoAssignment(), Target.class, TargetFilterQuery.class, null);
-    }
-
-    @Override
-    @Transactional
-    public void cancelAutoAssignmentForDistributionSet(final long distributionSetId) {
-        targetFilterQueryRepository.unsetAutoAssignDistributionSetAndActionTypeAndAccessContext(distributionSetId);
-        log.debug("Auto assignments for distribution sets {} deactivated", distributionSetId);
     }
 }

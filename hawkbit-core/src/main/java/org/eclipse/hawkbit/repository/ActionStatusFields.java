@@ -9,33 +9,20 @@
  */
 package org.eclipse.hawkbit.repository;
 
+import lombok.Getter;
+
 /**
- * Sort fields for {@link ActionStatusRest}.
- *
- *
- *
- *
+ * Sort and search fields for action status.
  */
-public enum ActionStatusFields implements FieldNameProvider {
+@Getter
+public enum ActionStatusFields implements RsqlQueryField {
 
-    /**
-     * The id field.
-     */
     ID("id"),
-
-    /**
-     * The reportedAt field.
-     */
     REPORTEDAT("createdAt");
 
-    private final String fieldName;
+    private final String jpaEntityFieldName;
 
-    private ActionStatusFields(final String fieldName) {
-        this.fieldName = fieldName;
-    }
-
-    @Override
-    public String getFieldName() {
-        return fieldName;
+    ActionStatusFields(final String jpaEntityFieldName) {
+        this.jpaEntityFieldName = jpaEntityFieldName;
     }
 }

@@ -9,29 +9,28 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
-import org.eclipse.hawkbit.repository.model.DistributionSetTag;
-import org.junit.jupiter.api.Test;
-
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
+import org.eclipse.hawkbit.repository.model.DistributionSetTag;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test the remote entity events.
  */
 @Feature("Component Tests - Repository")
 @Story("Test DistributionSetTagCreatedEvent and DistributionSetTagUpdateEvent")
-public class DistributionSetTagEventTest extends AbstractRemoteEntityEventTest<DistributionSetTag> {
+class DistributionSetTagEventTest extends AbstractRemoteEntityEventTest<DistributionSetTag> {
 
     @Test
     @Description("Verifies that the distribution set tag entity reloading by remote created event works")
-    public void testDistributionSetTagCreatedEvent() {
+    void testDistributionSetTagCreatedEvent() {
         assertAndCreateRemoteEvent(DistributionSetTagCreatedEvent.class);
     }
 
     @Test
     @Description("Verifies that the distribution set tag entity reloading by remote updated event works")
-    public void testDistributionSetTagUpdateEvent() {
+    void testDistributionSetTagUpdateEvent() {
         assertAndCreateRemoteEvent(DistributionSetTagUpdatedEvent.class);
     }
 

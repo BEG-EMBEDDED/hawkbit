@@ -9,37 +9,25 @@
  */
 package org.eclipse.hawkbit.repository;
 
+import lombok.Getter;
+
 /**
  * Sort fields for DistributionSetMetadata.
- *
- *
- *
- *
  */
-public enum DistributionSetMetadataFields implements FieldNameProvider {
+@Getter
+public enum DistributionSetMetadataFields implements RsqlQueryField {
 
-    /**
-     * The value field.
-     */
-    VALUE("value"),
-    /**
-     * The key field.
-     */
-    KEY("key");
+    KEY("key"),
+    VALUE("value");
 
-    private final String fieldName;
+    private final String jpaEntityFieldName;
 
-    private DistributionSetMetadataFields(final String fieldName) {
-        this.fieldName = fieldName;
-    }
-
-    @Override
-    public String getFieldName() {
-        return fieldName;
+    DistributionSetMetadataFields(final String jpaEntityFieldName) {
+        this.jpaEntityFieldName = jpaEntityFieldName;
     }
 
     @Override
     public String identifierFieldName() {
-        return KEY.getFieldName();
+        return KEY.getJpaEntityFieldName();
     }
 }

@@ -11,6 +11,7 @@ package org.eclipse.hawkbit.security;
 
 import java.util.Optional;
 
+import org.eclipse.hawkbit.tenancy.TenantAwareAuthenticationDetails;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,7 +21,6 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 /**
  * Auditor class that allows BaseEntitys to insert current logged in user for
  * repository changes.
- *
  */
 public class SpringSecurityAuditorAware implements AuditorAware<String> {
 
@@ -29,6 +29,19 @@ public class SpringSecurityAuditorAware implements AuditorAware<String> {
     // after runAsTenantAsUser (because it seems that auditor is got in commit time).
     // So this thread local variable provides option to override explicitly the auditor.
     private static final ThreadLocal<String> AUDITOR_OVERRIDE = new ThreadLocal<>();
+
+    // Always shall be followed by {@link #clearAuditorOverride}
+    public static void setAuditorOverride(final String auditor) {
+        if (auditor == null) {
+            AUDITOR_OVERRIDE.remove();
+        } else {
+            AUDITOR_OVERRIDE.set(auditor);
+        }
+    }
+
+    public static void clearAuditorOverride() {
+        AUDITOR_OVERRIDE.remove();
+    }
 
     @Override
     public Optional<String> getCurrentAuditor() {
@@ -45,25 +58,15 @@ public class SpringSecurityAuditorAware implements AuditorAware<String> {
         return Optional.ofNullable(getCurrentAuditor(authentication));
     }
 
-    // Always shall be followed by {@link #clearAuditorOverride}
-    public static void setAuditorOverride(final String auditor) {
-        if (auditor == null) {
-            AUDITOR_OVERRIDE.remove();
-        } else {
-            AUDITOR_OVERRIDE.set(auditor);
-        }
-    }
-
-    public static void clearAuditorOverride() {
-        AUDITOR_OVERRIDE.remove();
-    }
-
     protected String getCurrentAuditor(final Authentication authentication) {
-        if (authentication.getPrincipal() instanceof UserDetails) {
-            return ((UserDetails) authentication.getPrincipal()).getUsername();
+        if (authentication.getDetails() instanceof TenantAwareAuthenticationDetails tenantAwareDetails && tenantAwareDetails.isController()) {
+            return "CONTROLLER_PLUG_AND_PLAY";
         }
-        if (authentication.getPrincipal() instanceof OidcUser) {
-            return ((OidcUser) authentication.getPrincipal()).getPreferredUsername();
+        if (authentication.getPrincipal() instanceof UserDetails userDetails) {
+            return userDetails.getUsername();
+        }
+        if (authentication.getPrincipal() instanceof OidcUser oidcUser) {
+            return oidcUser.getPreferredUsername();
         }
         return authentication.getPrincipal().toString();
     }

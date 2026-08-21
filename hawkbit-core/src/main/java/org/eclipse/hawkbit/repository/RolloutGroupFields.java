@@ -9,33 +9,21 @@
  */
 package org.eclipse.hawkbit.repository;
 
+import lombok.Getter;
+
 /**
- * Describing the fields of the RolloutGroup model which can be used in the REST
- * API e.g. for sorting etc.
- *
+ * Describing the fields of the RolloutGroup model which can be used in the REST API e.g. for sorting etc.
  */
-public enum RolloutGroupFields implements FieldNameProvider {
-    /**
-     * The name field.
-     */
+@Getter
+public enum RolloutGroupFields implements RsqlQueryField {
+
+    ID("id"),
     NAME("name"),
-    /**
-     * The description field.
-     */
-    DESCRIPTION("description"),
-    /**
-     * The id field.
-     */
-    ID("id");
+    DESCRIPTION("description");
 
-    private final String fieldName;
+    private final String jpaEntityFieldName;
 
-    private RolloutGroupFields(final String fieldName) {
-        this.fieldName = fieldName;
-    }
-
-    @Override
-    public String getFieldName() {
-        return fieldName;
+    RolloutGroupFields(final String jpaEntityFieldName) {
+        this.jpaEntityFieldName = jpaEntityFieldName;
     }
 }

@@ -9,12 +9,14 @@
  */
 package org.eclipse.hawkbit.amqp;
 
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
-import org.eclipse.hawkbit.api.ArtifactUrlHandler;
-import org.eclipse.hawkbit.api.HostnameResolver;
-import org.eclipse.hawkbit.cache.DownloadIdCache;
+import org.eclipse.hawkbit.artifact.repository.urlhandler.ArtifactUrlHandler;
 import org.eclipse.hawkbit.dmf.amqp.api.AmqpSettings;
-import org.eclipse.hawkbit.repository.ArtifactManagement;
 import org.eclipse.hawkbit.repository.ConfirmationManagement;
 import org.eclipse.hawkbit.repository.ControllerManagement;
 import org.eclipse.hawkbit.repository.DeploymentManagement;
@@ -24,9 +26,7 @@ import org.eclipse.hawkbit.repository.SoftwareModuleManagement;
 import org.eclipse.hawkbit.repository.SystemManagement;
 import org.eclipse.hawkbit.repository.TargetManagement;
 import org.eclipse.hawkbit.repository.TenantConfigurationManagement;
-import org.eclipse.hawkbit.security.DdiSecurityProperties;
 import org.eclipse.hawkbit.security.SystemSecurityContext;
-import org.eclipse.hawkbit.tenancy.TenantAware;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.FanoutExchange;
@@ -51,14 +51,8 @@ import org.springframework.retry.backoff.ExponentialBackOffPolicy;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.ErrorHandler;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
- * Spring configuration for AMQP based DMF communication for indirect device
- * integration.
+ * Spring configuration for AMQP based DMF communication for indirect device integration.
  */
 @Slf4j
 @EnableConfigurationProperties({ AmqpProperties.class, AmqpDeadletterProperties.class })
@@ -66,31 +60,34 @@ import java.util.Map;
 @PropertySource("classpath:/hawkbit-dmf-defaults.properties")
 public class AmqpConfiguration {
 
-    @Autowired
-    private AmqpProperties amqpProperties;
-
-    @Autowired
-    private AmqpDeadletterProperties amqpDeadletterProperties;
-
-    @Autowired
-    private ConnectionFactory rabbitConnectionFactory;
-
-    @Autowired(required = false)
+    private final AmqpProperties amqpProperties;
+    private final AmqpDeadletterProperties amqpDeadletterProperties;
+    private final ConnectionFactory rabbitConnectionFactory;
     private ServiceMatcher serviceMatcher;
+
+    public AmqpConfiguration(final AmqpProperties amqpProperties, final AmqpDeadletterProperties amqpDeadletterProperties, final ConnectionFactory rabbitConnectionFactory) {
+        this.amqpProperties = amqpProperties;
+        this.amqpDeadletterProperties = amqpDeadletterProperties;
+        this.rabbitConnectionFactory = rabbitConnectionFactory;
+    }
+
+    @Autowired(required = false) // spring setter injection
+    public void setServiceMatcher(final ServiceMatcher serviceMatcher) {
+        this.serviceMatcher = serviceMatcher;
+    }
 
     /**
      * Creates a custom error handler bean.
      *
-     *  @param handlers
-     *                  list of {@link AmqpErrorHandler} handlers
-
+     * @param handlers list of {@link AmqpErrorHandler} handlers
      * @return the delegating error handler bean
      */
     @Bean
     @ConditionalOnMissingBean
     public ErrorHandler errorHandler(final List<AmqpErrorHandler> handlers) {
-        return new DelegatingConditionalErrorHandler(handlers, new ConditionalRejectingErrorHandler(
-                new DelayedRequeueExceptionStrategy(amqpProperties.getRequeueDelay())));
+        return new DelegatingConditionalErrorHandler(
+                handlers,
+                new ConditionalRejectingErrorHandler(new DelayedRequeueExceptionStrategy(amqpProperties.getRequeueDelay())));
     }
 
     /**
@@ -137,8 +134,7 @@ public class AmqpConfiguration {
     }
 
     /**
-     * @return {@link RabbitTemplate} with automatic retry, published confirms and
-     *         {@link Jackson2JsonMessageConverter}.
+     * @return {@link RabbitTemplate} with automatic retry, published confirms and {@link Jackson2JsonMessageConverter}.
      */
     @Bean
     public RabbitTemplate rabbitTemplate() {
@@ -167,7 +163,9 @@ public class AmqpConfiguration {
      */
     @Bean
     public Queue dmfReceiverQueue() {
-        return new Queue(amqpProperties.getReceiverQueue(), true, false, false,
+        return new Queue(
+                amqpProperties.getReceiverQueue(),
+                true, false, false,
                 amqpDeadletterProperties.getDeadLetterExchangeArgs(amqpProperties.getDeadLetterExchange()));
     }
 
@@ -179,8 +177,10 @@ public class AmqpConfiguration {
      */
     @Bean
     public Queue authenticationReceiverQueue() {
-        return QueueBuilder.nonDurable(amqpProperties.getAuthenticationReceiverQueue()).autoDelete()
-                .withArguments(getTTLMaxArgsAuthenticationQueue()).build();
+        return QueueBuilder.nonDurable(amqpProperties.getAuthenticationReceiverQueue())
+                .autoDelete()
+                .withArguments(getTTLMaxArgsAuthenticationQueue())
+                .build();
     }
 
     /**
@@ -202,27 +202,6 @@ public class AmqpConfiguration {
     @Bean
     public Binding bindDmfSenderExchangeToDmfQueue() {
         return BindingBuilder.bind(dmfReceiverQueue()).to(dmfSenderExchange());
-    }
-
-    /**
-     * Create authentication exchange.
-     *
-     * @return the fanout exchange
-     */
-    @Bean
-    public FanoutExchange authenticationExchange() {
-        return new FanoutExchange(AmqpSettings.AUTHENTICATION_EXCHANGE, false, true);
-    }
-
-    /**
-     * Create the Binding {@link AmqpConfiguration#authenticationReceiverQueue()} to
-     * {@link AmqpConfiguration#authenticationExchange()}.
-     *
-     * @return the binding and create the queue and exchange
-     */
-    @Bean
-    public Binding bindAuthenticationSenderExchangeToAuthenticationQueue() {
-        return BindingBuilder.bind(authenticationReceiverQueue()).to(authenticationExchange());
     }
 
     /**
@@ -258,41 +237,24 @@ public class AmqpConfiguration {
     /**
      * Create AMQP handler service bean.
      *
-     * @param rabbitTemplate
-     *            for converting messages
-     * @param amqpMessageDispatcherService
-     *            to sending events to DMF client
-     * @param controllerManagement
-     *            for target repo access
-     * @param entityFactory
-     *            to create entities
-     *
+     * @param rabbitTemplate for converting messages
+     * @param amqpMessageDispatcherService to sending events to DMF client
+     * @param controllerManagement for target repo access
+     * @param entityFactory to create entities
      * @return handler service bean
      */
     @Bean
     @ConditionalOnMissingBean
-    public AmqpMessageHandlerService amqpMessageHandlerService(final RabbitTemplate rabbitTemplate,
+    public AmqpMessageHandlerService amqpMessageHandlerService(
+            final RabbitTemplate rabbitTemplate,
             final AmqpMessageDispatcherService amqpMessageDispatcherService,
             final ControllerManagement controllerManagement, final EntityFactory entityFactory,
             final SystemSecurityContext systemSecurityContext,
             final TenantConfigurationManagement tenantConfigurationManagement,
             final ConfirmationManagement confirmationManagement) {
-        return new AmqpMessageHandlerService(rabbitTemplate, amqpMessageDispatcherService, controllerManagement,
+        return new AmqpMessageHandlerService(
+                rabbitTemplate, amqpMessageDispatcherService, controllerManagement,
                 entityFactory, systemSecurityContext, tenantConfigurationManagement, confirmationManagement);
-    }
-
-    /**
-     * Create AMQP handler service bean for authentication messages.
-     * 
-     * @return handler service bean
-     */
-    @Bean
-    AmqpAuthenticationMessageHandler amqpAuthenticationMessageHandler(final RabbitTemplate rabbitTemplate,
-            final AmqpControllerAuthentication authenticationManager, final ArtifactManagement artifactManagement,
-            final DownloadIdCache downloadIdCache, final HostnameResolver hostnameResolver,
-            final ControllerManagement controllerManagement, final TenantAware tenantAware) {
-        return new AmqpAuthenticationMessageHandler(rabbitTemplate, authenticationManager, artifactManagement,
-                downloadIdCache, hostnameResolver, controllerManagement, tenantAware);
     }
 
     /**
@@ -307,8 +269,7 @@ public class AmqpConfiguration {
     }
 
     /**
-     * Create RabbitListenerContainerFactory bean if no listenerContainerFactory
-     * bean found
+     * Create RabbitListenerContainerFactory bean if no listenerContainerFactory bean found
      *
      * @return RabbitListenerContainerFactory bean
      */
@@ -322,36 +283,10 @@ public class AmqpConfiguration {
         return factory;
     }
 
-    /**
-     * create the authentication bean for controller over amqp.
-     *
-     * @param systemManagement
-     *            the systemManagement
-     * @param controllerManagement
-     *            the controllerManagement
-     * @param tenantConfigurationManagement
-     *            the tenantConfigurationManagement
-     * @param tenantAware
-     *            the tenantAware
-     * @param ddiSecruityProperties
-     *            the ddiSecruityProperties
-     * @param systemSecurityContext
-     *            the systemSecurityContext
-     * @return the bean
-     */
-    @Bean
-    @ConditionalOnMissingBean(AmqpControllerAuthentication.class)
-    public AmqpControllerAuthentication amqpControllerAuthentication(final SystemManagement systemManagement,
-            final ControllerManagement controllerManagement,
-            final TenantConfigurationManagement tenantConfigurationManagement, final TenantAware tenantAware,
-            final DdiSecurityProperties ddiSecruityProperties, final SystemSecurityContext systemSecurityContext) {
-        return new AmqpControllerAuthentication(systemManagement, controllerManagement, tenantConfigurationManagement,
-                tenantAware, ddiSecruityProperties, systemSecurityContext);
-    }
-
     @Bean
     @ConditionalOnMissingBean(AmqpMessageDispatcherService.class)
-    AmqpMessageDispatcherService amqpMessageDispatcherService(final RabbitTemplate rabbitTemplate,
+    AmqpMessageDispatcherService amqpMessageDispatcherService(
+            final RabbitTemplate rabbitTemplate,
             final AmqpMessageSenderService amqpSenderService, final ArtifactUrlHandler artifactUrlHandler,
             final SystemSecurityContext systemSecurityContext, final SystemManagement systemManagement,
             final TargetManagement targetManagement, final DistributionSetManagement distributionSetManagement,

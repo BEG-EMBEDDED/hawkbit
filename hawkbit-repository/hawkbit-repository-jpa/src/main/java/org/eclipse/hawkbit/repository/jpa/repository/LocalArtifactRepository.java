@@ -20,21 +20,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@link Artifact} repository.
- *
  */
 @Transactional(readOnly = true)
-public interface LocalArtifactRepository
-        extends BaseEntityRepository<JpaArtifact> {
+public interface LocalArtifactRepository extends BaseEntityRepository<JpaArtifact> {
 
     /**
-     * Counts artifacts size where the related software module is not
-     * deleted/archived.
+     * Counts artifacts size where the related software module is not deleted/archived.
      * <p/>
      * No access control applied.
      *
      * @return sum of artifacts size in bytes
      */
-    @Query("SELECT SUM(la.size) FROM JpaArtifact la WHERE la.softwareModule.deleted = false")
+    @Query("SELECT SUM(a.fileSize) FROM JpaArtifact a WHERE a.softwareModule.deleted = false")
     Optional<Long> sumOfNonDeletedArtifactSize();
 
     /**
@@ -48,8 +45,7 @@ public interface LocalArtifactRepository
     Long countBySoftwareModuleDeleted(boolean deleted);
 
     /**
-     * Counts current elements based on the sha1 and tenant, as well as having the
-     * {@link SoftwareModule} property 'deleted' with value 'false'
+     * Counts current elements based on the sha1 and tenant, as well as having the {@link SoftwareModule} property 'deleted' with value 'false'
      * <p/>
      * No access control applied
      *
@@ -57,8 +53,7 @@ public interface LocalArtifactRepository
      * @param tenant the current tenant\
      * @return the count of the elements
      */
-    long countBySha1HashAndTenantAndSoftwareModuleDeletedIsFalse(
-            @Param("sha1") String sha1, @Param("tenant") String tenant);
+    long countBySha1HashAndTenantAndSoftwareModuleDeletedIsFalse(@Param("sha1") String sha1, @Param("tenant") String tenant);
 
     /**
      * Searches for a {@link Artifact} based on given gridFsFileName.
@@ -80,11 +75,8 @@ public interface LocalArtifactRepository
      * Searches for a {@link Artifact} based user provided filename at upload and
      * selected software module id.
      *
-     * @param filename
-     *            to search
-     * @param softwareModuleId
-     *            selected software module id
-     * 
+     * @param filename to search
+     * @param softwareModuleId selected software module id
      * @return list of {@link Artifact}.
      */
     Optional<Artifact> findFirstByFilenameAndSoftwareModuleId(String filename, Long softwareModuleId);

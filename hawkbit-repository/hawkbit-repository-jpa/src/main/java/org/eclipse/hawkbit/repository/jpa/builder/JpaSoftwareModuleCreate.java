@@ -20,13 +20,10 @@ import org.eclipse.hawkbit.repository.model.SoftwareModuleType;
 
 /**
  * Create/build implementation.
- *
  */
-public class JpaSoftwareModuleCreate extends AbstractSoftwareModuleUpdateCreate<SoftwareModuleCreate>
-        implements SoftwareModuleCreate {
+public class JpaSoftwareModuleCreate extends AbstractSoftwareModuleUpdateCreate<SoftwareModuleCreate> implements SoftwareModuleCreate {
 
     private final SoftwareModuleTypeManagement softwareModuleTypeManagement;
-
     private boolean encrypted;
 
     JpaSoftwareModuleCreate(final SoftwareModuleTypeManagement softwareModuleTypeManagement) {
@@ -39,14 +36,14 @@ public class JpaSoftwareModuleCreate extends AbstractSoftwareModuleUpdateCreate<
         return this;
     }
 
-    public boolean isEncrypted() {
-        return encrypted;
-    }
-
     @Override
     public JpaSoftwareModule build() {
         return new JpaSoftwareModule(getSoftwareModuleTypeFromKeyString(type), name, version, description, vendor,
                 encrypted);
+    }
+
+    public boolean isEncrypted() {
+        return encrypted;
     }
 
     private SoftwareModuleType getSoftwareModuleTypeFromKeyString(final String type) {
@@ -54,7 +51,7 @@ public class JpaSoftwareModuleCreate extends AbstractSoftwareModuleUpdateCreate<
             throw new ValidationException("type cannot be null");
         }
 
-        return softwareModuleTypeManagement.getByKey(type.trim())
+        return softwareModuleTypeManagement.findByKey(type.trim())
                 .orElseThrow(() -> new EntityNotFoundException(SoftwareModuleType.class, type.trim()));
     }
 }

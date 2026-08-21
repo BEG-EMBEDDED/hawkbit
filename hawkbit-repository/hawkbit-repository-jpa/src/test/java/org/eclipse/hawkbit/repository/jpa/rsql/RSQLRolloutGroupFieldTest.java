@@ -11,6 +11,9 @@ package org.eclipse.hawkbit.repository.jpa.rsql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.qameta.allure.Description;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Story;
 import org.eclipse.hawkbit.repository.RolloutGroupFields;
 import org.eclipse.hawkbit.repository.jpa.AbstractJpaIntegrationTest;
 import org.eclipse.hawkbit.repository.model.DistributionSet;
@@ -24,31 +27,27 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.jpa.vendor.Database;
 
-import io.qameta.allure.Description;
-import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
-
 @Feature("Component Tests - Repository")
 @Story("RSQL filter rollout group")
-public class RSQLRolloutGroupFieldTest extends AbstractJpaIntegrationTest {
+class RSQLRolloutGroupFieldTest extends AbstractJpaIntegrationTest {
 
     private Long rolloutGroupId;
     private Rollout rollout;
 
     @BeforeEach
-    public void setupBeforeTest() {
+    void setupBeforeTest() {
         final int amountTargets = 20;
         testdataFactory.createTargets(amountTargets, "rollout", "rollout");
         final DistributionSet dsA = testdataFactory.createDistributionSet("");
         rollout = createRollout("rollout1", 4, dsA.getId(), "controllerId==rollout*");
         rollout = rolloutManagement.get(rollout.getId()).get();
 
-        this.rolloutGroupId = rolloutGroupManagement.findByRollout(PAGE, rollout.getId()).getContent().get(0).getId();
+        this.rolloutGroupId = rolloutGroupManagement.findByRollout(rollout.getId(), PAGE).getContent().get(0).getId();
     }
 
     @Test
     @Description("Test filter rollout group by  id")
-    public void testFilterByParameterId() {
+    void testFilterByParameterId() {
         assertRSQLQuery(RolloutGroupFields.ID.name() + "==" + rolloutGroupId, 1);
         assertRSQLQuery(RolloutGroupFields.ID.name() + "!=" + rolloutGroupId, 3);
         assertRSQLQuery(RolloutGroupFields.ID.name() + "==" + -1, 0);
@@ -59,15 +58,13 @@ public class RSQLRolloutGroupFieldTest extends AbstractJpaIntegrationTest {
             return;
         }
 
-        assertRSQLQuery(RolloutGroupFields.ID.name() + "==*", 4);
-        assertRSQLQuery(RolloutGroupFields.ID.name() + "==noexist*", 0);
         assertRSQLQuery(RolloutGroupFields.ID.name() + "=in=(" + rolloutGroupId + ",10000000)", 1);
         assertRSQLQuery(RolloutGroupFields.ID.name() + "=out=(" + rolloutGroupId + ",10000000)", 3);
     }
 
     @Test
     @Description("Test filter rollout group by name")
-    public void testFilterByParameterName() {
+    void testFilterByParameterName() {
         assertRSQLQuery(RolloutGroupFields.NAME.name() + "==group-1", 1);
         assertRSQLQuery(RolloutGroupFields.NAME.name() + "!=group-1", 3);
         assertRSQLQuery(RolloutGroupFields.NAME.name() + "==*", 4);
@@ -78,7 +75,7 @@ public class RSQLRolloutGroupFieldTest extends AbstractJpaIntegrationTest {
 
     @Test
     @Description("Test filter rollout group by description")
-    public void testFilterByParameterDescription() {
+    void testFilterByParameterDescription() {
         assertRSQLQuery(RolloutGroupFields.DESCRIPTION.name() + "==group-1", 1);
         assertRSQLQuery(RolloutGroupFields.DESCRIPTION.name() + "!=group-1", 3);
         assertRSQLQuery(RolloutGroupFields.DESCRIPTION.name() + "==group*", 4);
@@ -88,8 +85,8 @@ public class RSQLRolloutGroupFieldTest extends AbstractJpaIntegrationTest {
     }
 
     private void assertRSQLQuery(final String rsqlParam, final long expectedTargets) {
-        final Page<RolloutGroup> findTargetPage = rolloutGroupManagement.findByRolloutAndRsql(PageRequest.of(0, 100),
-                rollout.getId(), rsqlParam);
+        final Page<RolloutGroup> findTargetPage = rolloutGroupManagement.findByRolloutAndRsql(rollout.getId(), rsqlParam, PageRequest.of(0, 100)
+        );
         final long countTargetsAll = findTargetPage.getTotalElements();
         assertThat(findTargetPage).isNotNull();
         assertThat(countTargetsAll).isEqualTo(expectedTargets);

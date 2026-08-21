@@ -13,9 +13,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import jakarta.persistence.criteria.Predicate;
+
+import io.qameta.allure.Description;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Story;
 import org.eclipse.hawkbit.repository.Identifiable;
 import org.eclipse.hawkbit.repository.builder.AutoAssignDistributionSetUpdate;
 import org.eclipse.hawkbit.repository.exception.EntityNotFoundException;
@@ -23,21 +29,18 @@ import org.eclipse.hawkbit.repository.exception.InsufficientPermissionException;
 import org.eclipse.hawkbit.repository.jpa.acm.AccessController;
 import org.eclipse.hawkbit.repository.jpa.model.JpaDistributionSet;
 import org.eclipse.hawkbit.repository.jpa.model.JpaDistributionSetMetadata;
+import org.eclipse.hawkbit.repository.jpa.model.JpaDistributionSet_;
 import org.eclipse.hawkbit.repository.jpa.model.JpaTarget;
-import org.eclipse.hawkbit.repository.jpa.specifications.DistributionSetSpecification;
 import org.eclipse.hawkbit.repository.jpa.specifications.TargetSpecifications;
 import org.eclipse.hawkbit.repository.model.Action;
 import org.eclipse.hawkbit.repository.model.DistributionSet;
 import org.eclipse.hawkbit.repository.model.DistributionSetFilter;
-import org.eclipse.hawkbit.repository.model.DistributionSetTag;
+import org.eclipse.hawkbit.repository.model.MetaData;
 import org.eclipse.hawkbit.repository.model.SoftwareModule;
 import org.eclipse.hawkbit.repository.model.TargetFilterQuery;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
-
-import io.qameta.allure.Description;
-import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
+import org.springframework.data.jpa.domain.Specification;
 
 @Feature("Component Tests - Access Control")
 @Story("Test Distribution Set Access Controller")
@@ -65,53 +68,53 @@ class DistributionSetAccessControllerTest extends AbstractAccessControllerTest {
                 TargetSpecifications.hasId(permittedAction.getTarget().getId()),
                 target -> target.getId().equals(permittedAction.getTarget().getId()));
 
+        final Long permittedActionId = permitted.getId();
+
         // verify distributionSetManagement#findAll
         assertThat(distributionSetManagement.findAll(Pageable.unpaged()).get().map(Identifiable::getId).toList())
-                .containsOnly(permitted.getId());
+                .containsOnly(permittedActionId);
 
         // verify distributionSetManagement#findByRsql
-        assertThat(distributionSetManagement.findByRsql(Pageable.unpaged(), "name==*").get().map(Identifiable::getId)
-                .toList()).containsOnly(permitted.getId());
+        assertThat(distributionSetManagement.findByRsql("name==*", Pageable.unpaged()).get().map(Identifiable::getId)
+                .toList()).containsOnly(permittedActionId);
 
         // verify distributionSetManagement#findByCompleted
         assertThat(distributionSetManagement.findByCompleted(Pageable.unpaged(), true).get().map(Identifiable::getId)
-                .toList()).containsOnly(permitted.getId());
+                .toList()).containsOnly(permittedActionId);
 
         // verify distributionSetManagement#findByDistributionSetFilter
         assertThat(distributionSetManagement
-                .findByDistributionSetFilter(Pageable.unpaged(),
-                        DistributionSetFilter.builder().isDeleted(false).build())
-                .get().map(Identifiable::getId).toList()).containsOnly(permitted.getId());
+                .findByDistributionSetFilter(DistributionSetFilter.builder().isDeleted(false).build(), Pageable.unpaged())
+                .get().map(Identifiable::getId).toList()).containsOnly(permittedActionId);
 
         // verify distributionSetManagement#get
-        assertThat(distributionSetManagement.get(permitted.getId())).isPresent();
-        assertThat(distributionSetManagement.get(hidden.getId())).isEmpty();
+        assertThat(distributionSetManagement.get(permittedActionId)).isPresent();
+        final Long hiddenId = hidden.getId();
+        assertThat(distributionSetManagement.get(hiddenId)).isEmpty();
 
         // verify distributionSetManagement#getWithDetails
-        assertThat(distributionSetManagement.getWithDetails(permitted.getId())).isPresent();
-        assertThat(distributionSetManagement.getWithDetails(hidden.getId())).isEmpty();
+        assertThat(distributionSetManagement.getWithDetails(permittedActionId)).isPresent();
+        assertThat(distributionSetManagement.getWithDetails(hiddenId)).isEmpty();
 
         // verify distributionSetManagement#get
-        assertThat(distributionSetManagement.getValid(permitted.getId()).getId()).isEqualTo(permitted.getId());
-        assertThatThrownBy(() -> {
-            assertThat(distributionSetManagement.getValid(hidden.getId()));
-        }).as("Distribution set should not be found.").isInstanceOf(EntityNotFoundException.class);
+        assertThat(distributionSetManagement.getValid(permittedActionId).getId()).isEqualTo(permittedActionId);
+        assertThatThrownBy(() -> distributionSetManagement.getValid(hiddenId))
+                .as("Distribution set should not be found.").isInstanceOf(EntityNotFoundException.class);
 
         // verify distributionSetManagement#get
-        assertThatThrownBy(() -> {
-            distributionSetManagement.get(Arrays.asList(permitted.getId(), hidden.getId()));
-        }).as("Fail if request hidden.").isInstanceOf(EntityNotFoundException.class);
+        final List<Long> allActionIds = Arrays.asList(permittedActionId, hiddenId);
+        assertThatThrownBy(() -> distributionSetManagement.get(allActionIds))
+                .as("Fail if request hidden.").isInstanceOf(EntityNotFoundException.class);
 
         // verify distributionSetManagement#getByNameAndVersion
-        assertThat(distributionSetManagement.getByNameAndVersion(permitted.getName(), permitted.getVersion()))
-                .isPresent();
-        assertThat(distributionSetManagement.getByNameAndVersion(hidden.getName(), hidden.getVersion())).isEmpty();
+        assertThat(distributionSetManagement.findByNameAndVersion(permitted.getName(), permitted.getVersion())).isPresent();
+        assertThat(distributionSetManagement.findByNameAndVersion(hidden.getName(), hidden.getVersion())).isEmpty();
 
         // verify distributionSetManagement#getByAction
-        assertThat(distributionSetManagement.getByAction(permittedAction.getId())).isPresent();
-        assertThatThrownBy(() -> {
-            distributionSetManagement.getByAction(hiddenAction.getId());
-        }).as("Action is hidden.").isInstanceOf(InsufficientPermissionException.class);
+        assertThat(distributionSetManagement.findByAction(permittedAction.getId())).isPresent();
+        final Long hiddenActionId = hiddenAction.getId();
+        assertThatThrownBy(() -> distributionSetManagement.findByAction(hiddenActionId))
+                .as("Action is hidden.").isInstanceOf(InsufficientPermissionException.class);
     }
 
     @Test
@@ -137,47 +140,48 @@ class DistributionSetAccessControllerTest extends AbstractAccessControllerTest {
         defineAccess(AccessController.Operation.UPDATE, permitted);
 
         // verify distributionSetManagement#assignSoftwareModules
-        assertThat(distributionSetManagement.assignSoftwareModules(permitted.getId(),
-                Collections.singletonList(swModule.getId()))).satisfies(ds -> {
-                    assertThat(ds.getModules().stream().map(Identifiable::getId).toList()).contains(swModule.getId());
-                });
-        assertThatThrownBy(() -> {
-            distributionSetManagement.assignSoftwareModules(readOnly.getId(),
-                    Collections.singletonList(swModule.getId()));
-        }).as("Distribution set not allowed to me modified.").isInstanceOf(EntityNotFoundException.class);
-        assertThatThrownBy(() -> {
-            distributionSetManagement.assignSoftwareModules(hidden.getId(),
-                    Collections.singletonList(swModule.getId()));
-        }).as("Distribution set should not be visible.").isInstanceOf(EntityNotFoundException.class);
+        final var singleModuleIdList = Collections.singletonList(swModule.getId());
+        assertThat(distributionSetManagement.assignSoftwareModules(permitted.getId(), singleModuleIdList))
+                .satisfies(ds -> assertThat(ds.getModules().stream().map(Identifiable::getId).toList()).contains(swModule.getId()));
+        final Long readOnlyId = readOnly.getId();
+        assertThatThrownBy(() -> distributionSetManagement.assignSoftwareModules(readOnlyId, singleModuleIdList))
+                .as("Distribution set not allowed to me modified.")
+                .isInstanceOf(EntityNotFoundException.class);
+        final Long hiddenId = hidden.getId();
+        assertThatThrownBy(() -> distributionSetManagement.assignSoftwareModules(hiddenId, singleModuleIdList))
+                .as("Distribution set should not be visible.")
+                .isInstanceOf(EntityNotFoundException.class);
 
         final JpaDistributionSetMetadata metadata = new JpaDistributionSetMetadata("test", "test");
 
         // verify distributionSetManagement#createMetaData
-        distributionSetManagement.createMetaData(permitted.getId(), Collections.singletonList(metadata));
-        assertThatThrownBy(() -> {
-            distributionSetManagement.createMetaData(readOnly.getId(), Collections.singletonList(metadata));
-        }).as("Distribution set not allowed to me modified.").isInstanceOf(EntityNotFoundException.class);
-        assertThatThrownBy(() -> {
-            distributionSetManagement.createMetaData(hidden.getId(), Collections.singletonList(metadata));
-        }).as("Distribution set should not be visible.").isInstanceOf(EntityNotFoundException.class);
+        final List<MetaData> metadataList = Collections.singletonList(metadata);
+        distributionSetManagement.putMetaData(permitted.getId(), metadataList);
+        assertThatThrownBy(() -> distributionSetManagement.putMetaData(readOnlyId, metadataList))
+                .as("Distribution set not allowed to me modified.")
+                .isInstanceOf(EntityNotFoundException.class);
+        assertThatThrownBy(() -> distributionSetManagement.putMetaData(hiddenId, metadataList))
+                .as("Distribution set should not be visible.")
+                .isInstanceOf(EntityNotFoundException.class);
 
         // verify distributionSetManagement#updateMetaData
         distributionSetManagement.updateMetaData(permitted.getId(), metadata);
-        assertThatThrownBy(() -> {
-            distributionSetManagement.updateMetaData(readOnly.getId(), metadata);
-        }).as("Distribution set not allowed to me modified.").isInstanceOf(EntityNotFoundException.class);
-        assertThatThrownBy(() -> {
-            distributionSetManagement.updateMetaData(hidden.getId(), metadata);
-        }).as("Distribution set should not be visible.").isInstanceOf(EntityNotFoundException.class);
+        assertThatThrownBy(() -> distributionSetManagement.updateMetaData(readOnlyId, metadata))
+                .as("Distribution set not allowed to me modified.")
+                .isInstanceOf(EntityNotFoundException.class);
+        assertThatThrownBy(() -> distributionSetManagement.updateMetaData(hiddenId, metadata))
+                .as("Distribution set should not be visible.")
+                .isInstanceOf(EntityNotFoundException.class);
 
         // verify distributionSetManagement#deleteMetaData
-        distributionSetManagement.deleteMetaData(permitted.getId(), metadata.getKey());
-        assertThatThrownBy(() -> {
-            distributionSetManagement.deleteMetaData(readOnly.getId(), metadata.getKey());
-        }).as("Distribution set not allowed to me modified.").isInstanceOf(EntityNotFoundException.class);
-        assertThatThrownBy(() -> {
-            distributionSetManagement.deleteMetaData(hidden.getId(), metadata.getKey());
-        }).as("Distribution set should not be visible.").isInstanceOf(EntityNotFoundException.class);
+        final String metadataKey = metadata.getKey();
+        distributionSetManagement.deleteMetaData(permitted.getId(), metadataKey);
+        assertThatThrownBy(() -> distributionSetManagement.deleteMetaData(readOnlyId, metadataKey))
+                .as("Distribution set not allowed to me modified.")
+                .isInstanceOf(EntityNotFoundException.class);
+        assertThatThrownBy(() -> distributionSetManagement.deleteMetaData(hiddenId, metadataKey))
+                .as("Distribution set should not be visible.")
+                .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
@@ -190,11 +194,12 @@ class DistributionSetAccessControllerTest extends AbstractAccessControllerTest {
         final DistributionSet permitted = testdataFactory.createDistributionSet();
         final DistributionSet readOnly = testdataFactory.createDistributionSet();
         final DistributionSet hidden = testdataFactory.createDistributionSet();
-        final DistributionSetTag dsTag = distributionSetTagManagement.create(entityFactory.tag().create().name("dsTag"));
+        final Long dsTagId = distributionSetTagManagement.create(entityFactory.tag().create().name("dsTag")).getId();
+        final Long dsTag2Id = distributionSetTagManagement.create(entityFactory.tag().create().name("dsTag2")).getId();
 
         // perform tag assignment before setting access rules
         distributionSetManagement.assignTag(Arrays.asList(permitted.getId(), readOnly.getId(), hidden.getId()),
-                dsTag.getId());
+                dsTagId);
         // entities created - reset rules
         testAccessControlManger.deleteAllRules();
 
@@ -204,59 +209,55 @@ class DistributionSetAccessControllerTest extends AbstractAccessControllerTest {
         // allow updating the permitted distributionSet
         defineAccess(AccessController.Operation.UPDATE, permitted);
 
-        assertThat(distributionSetManagement.findByTag(Pageable.unpaged(), dsTag.getId()).get().map(Identifiable::getId)
+        assertThat(distributionSetManagement.findByTag(dsTagId, Pageable.unpaged()).get().map(Identifiable::getId)
                 .toList()).containsOnly(permitted.getId(), readOnly.getId());
 
-        assertThat(distributionSetManagement.findByRsqlAndTag(Pageable.unpaged(), "id==*", dsTag.getId()).get()
+        assertThat(distributionSetManagement.findByRsqlAndTag("name==*", dsTagId, Pageable.unpaged()).get()
                 .map(Identifiable::getId).toList()).containsOnly(permitted.getId(), readOnly.getId());
 
-        // verify distributionSetManagement#toggleTagAssignment on permitted target
+        // verify distributionSetManagement#unassignTag on permitted target
         assertThat(distributionSetManagement
-                .toggleTagAssignment(Collections.singletonList(permitted.getId()), dsTag.getName()).getUnassigned())
+                .unassignTag(Collections.singletonList(permitted.getId()), dsTagId))
+                .size()
                 .isEqualTo(1);
         // verify distributionSetManagement#assignTag on permitted target
-        assertThat(distributionSetManagement.assignTag(Collections.singletonList(permitted.getId()), dsTag.getId()))
+        assertThat(distributionSetManagement.assignTag(Collections.singletonList(permitted.getId()), dsTagId))
                 .hasSize(1);
         // verify distributionSetManagement#unAssignTag on permitted target
-        assertThat(distributionSetManagement.unassignTag(permitted.getId(), dsTag.getId()).getId())
+        assertThat(distributionSetManagement.unassignTag(List.of(permitted.getId()), dsTagId)
+                .get(0).getId())
                 .isEqualTo(permitted.getId());
 
         // assignment is denied for readOnlyTarget (read, but no update permissions)
-        assertThatThrownBy(() -> {
-            distributionSetManagement.toggleTagAssignment(Collections.singletonList(readOnly.getId()), dsTag.getName())
-                    .getUnassigned();
-        }).as("Missing update permissions for target to toggle tag assignment.")
+        final List<Long> readOblyList = Collections.singletonList(readOnly.getId());
+        assertThatThrownBy(() ->
+                distributionSetManagement.unassignTag(readOblyList, dsTagId))
+                .as("Missing update permissions for target to toggle tag assignment.")
                 .isInstanceOf(InsufficientPermissionException.class);
 
         // assignment is denied for readOnlyTarget (read, but no update permissions)
+        // dsTag2- since - it is tagged with dsTag and won't do anything if assigning dsTag
         assertThatThrownBy(() -> {
-            distributionSetManagement.assignTag(Collections.singletonList(readOnly.getId()), dsTag.getId());
-        }).as("Missing update permissions for target to toggle tag assignment.")
-                .isInstanceOf(InsufficientPermissionException.class);
-
-        // assignment is denied for readOnlyTarget (read, but no update permissions)
-        assertThatThrownBy(() -> {
-            distributionSetManagement.unassignTag(readOnly.getId(), dsTag.getId());
+            distributionSetManagement.assignTag(readOblyList, dsTag2Id);
         }).as("Missing update permissions for target to toggle tag assignment.")
                 .isInstanceOf(InsufficientPermissionException.class);
 
         // assignment is denied for hiddenTarget since it's hidden
-        assertThatThrownBy(() -> {
-            distributionSetManagement.toggleTagAssignment(Collections.singletonList(hidden.getId()), dsTag.getName())
-                    .getUnassigned();
-        }).as("Missing update permissions for target to toggle tag assignment.")
+        final List<Long> hiddenList = Collections.singletonList(hidden.getId());
+        assertThatThrownBy(() -> distributionSetManagement.unassignTag(hiddenList, dsTagId))
+                .as("Missing update permissions for target to toggle tag assignment.")
                 .isInstanceOf(EntityNotFoundException.class);
 
         // assignment is denied for hiddenTarget since it's hidden
         assertThatThrownBy(() -> {
-            distributionSetManagement.assignTag(Collections.singletonList(hidden.getId()), dsTag.getId());
+            distributionSetManagement.assignTag(hiddenList, dsTagId);
         }).as("Missing update permissions for target to toggle tag assignment.")
                 .isInstanceOf(EntityNotFoundException.class);
 
         // assignment is denied for hiddenTarget since it's hidden
-        assertThatThrownBy(() -> {
-            distributionSetManagement.unassignTag(hidden.getId(), dsTag.getId());
-        }).as("Missing update permissions for target to toggle tag assignment.")
+        final List<Long> hiddenIdList = List.of(hidden.getId());
+        assertThatThrownBy(() -> distributionSetManagement.unassignTag(hiddenIdList, dsTagId))
+                .as("Missing update permissions for target to toggle tag assignment.")
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
@@ -293,14 +294,11 @@ class DistributionSetAccessControllerTest extends AbstractAccessControllerTest {
                 .updateAutoAssignDS(new AutoAssignDistributionSetUpdate(targetFilterQuery.getId())
                         .ds(readOnly.getId()).actionType(Action.ActionType.FORCED).confirmationRequired(false))
                 .getAutoAssignDistributionSet().getId();
-        assertThatThrownBy(() -> {
-            targetFilterQueryManagement
-                    .updateAutoAssignDS(new AutoAssignDistributionSetUpdate(targetFilterQuery.getId())
-                            .ds(hidden.getId()).actionType(Action.ActionType.FORCED).confirmationRequired(false))
-                    .getAutoAssignDistributionSet().getId();
-        }).isInstanceOf(EntityNotFoundException.class);
+        final AutoAssignDistributionSetUpdate autoAssignDistributionSetUpdate = new AutoAssignDistributionSetUpdate(targetFilterQuery.getId())
+                .ds(hidden.getId()).actionType(Action.ActionType.FORCED).confirmationRequired(false);
+        assertThatThrownBy(() -> targetFilterQueryManagement.updateAutoAssignDS(autoAssignDistributionSetUpdate))
+                .isInstanceOf(EntityNotFoundException.class);
     }
-
 
     private void defineAccess(final AccessController.Operation operation, final DistributionSet... distributionSets) {
         defineAccess(operation, List.of(distributionSets));
@@ -310,7 +308,15 @@ class DistributionSetAccessControllerTest extends AbstractAccessControllerTest {
         final List<Long> ids = targets.stream().map(DistributionSet::getId).toList();
         testAccessControlManger.defineAccessRule(
                 JpaDistributionSet.class, operation,
-                DistributionSetSpecification.byIds(ids),
+                dsByIds(ids),
                 distributionSet -> ids.contains(distributionSet.getId()));
+    }
+
+    private static Specification<JpaDistributionSet> dsByIds(final Collection<Long> distids) {
+        return (dsRoot, query, cb) -> {
+            final Predicate predicate = dsRoot.get(JpaDistributionSet_.id).in(distids);
+            query.distinct(true);
+            return predicate;
+        };
     }
 }

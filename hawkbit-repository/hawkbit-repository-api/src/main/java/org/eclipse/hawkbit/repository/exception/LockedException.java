@@ -9,11 +9,11 @@
  */
 package org.eclipse.hawkbit.repository.exception;
 
+import java.io.Serial;
+
 import org.eclipse.hawkbit.exception.AbstractServerRtException;
 import org.eclipse.hawkbit.exception.SpServerError;
 import org.eclipse.hawkbit.repository.model.BaseEntity;
-
-import java.io.Serial;
 
 /**
  * Thrown if there is attempt to functionally modify a locked entity
@@ -29,6 +29,13 @@ public class LockedException extends AbstractServerRtException {
             final Class<? extends BaseEntity> type, final Object entityId, final String operation) {
         super(type.getSimpleName() + " with given identifier {" + entityId + "} is locked and " + operation +
                         " is forbidden!",
+                THIS_ERROR);
+    }
+
+    public LockedException(
+            final Class<? extends BaseEntity> type, final Object entityId, final String operation, final String reason) {
+        super(type.getSimpleName() + " with given identifier {" + entityId + "} is locked and " + operation +
+                        " is forbidden! Reason: " + reason,
                 THIS_ERROR);
     }
 }

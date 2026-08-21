@@ -9,6 +9,8 @@
  */
 package org.eclipse.hawkbit.sdk.dmf.amqp;
 
+import static org.eclipse.hawkbit.dmf.amqp.api.AmqpSettings.DMF_EXCHANGE;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,17 +33,15 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.AbstractJavaTypeMapper;
 import org.springframework.util.ObjectUtils;
 
-import static org.eclipse.hawkbit.dmf.amqp.api.AmqpSettings.DMF_EXCHANGE;
-
 /**
  * Sender service to send messages to update server.
  */
 @Slf4j
 public class DmfSender {
 
-    private static final byte[] EMPTY_BODY = new byte[0];
-
     protected final RabbitTemplate rabbitTemplate;
+
+    private static final byte[] EMPTY_BODY = new byte[0];
     private final AmqpProperties amqpProperties;
     private final ConcurrentHashMap<String, BiConsumer<String, Message>> pingListeners = new ConcurrentHashMap<>();
 
@@ -51,8 +51,16 @@ public class DmfSender {
     }
 
     public void createOrUpdateThing(final String tenant, final String controllerId) {
+        sendThingMessage(tenant, controllerId, MessageType.THING_CREATED.name());
+    }
+
+    public void removeThing(final String tenant, final String controllerId) {
+        sendThingMessage(tenant, controllerId, MessageType.THING_REMOVED.name());
+    }
+
+    public void sendThingMessage(final String tenant, final String controllerId, String thingStatusChange) {
         final MessageProperties messagePropertiesForSP = new MessageProperties();
-        messagePropertiesForSP.setHeader(MessageHeaderKey.TYPE, MessageType.THING_CREATED.name());
+        messagePropertiesForSP.setHeader(MessageHeaderKey.TYPE, thingStatusChange);
         messagePropertiesForSP.setHeader(MessageHeaderKey.TENANT, tenant);
         messagePropertiesForSP.setHeader(MessageHeaderKey.THING_ID, controllerId);
         messagePropertiesForSP.setHeader(MessageHeaderKey.SENDER, "hawkBit-sdk");
@@ -116,9 +124,7 @@ public class DmfSender {
         messagePropertiesForSP.setContentType(MessageProperties.CONTENT_TYPE_JSON);
         messagePropertiesForSP.setReplyTo(amqpProperties.getSenderForSpExchange());
 
-        final DmfAttributeUpdate attributeUpdate = new DmfAttributeUpdate();
-        attributeUpdate.setMode(mode);
-        attributeUpdate.getAttributes().putAll(attributes);
+        final DmfAttributeUpdate attributeUpdate = new DmfAttributeUpdate(attributes, mode);
 
         sendMessage(DMF_EXCHANGE, convertMessage(attributeUpdate, messagePropertiesForSP));
     }
@@ -153,12 +159,12 @@ public class DmfSender {
             final DmfActionStatus actionStatus, final List<String> updateResultMessages) {
         final MessageProperties messageProperties = new MessageProperties();
         final Map<String, Object> headers = messageProperties.getHeaders();
-        final DmfActionUpdateStatus actionUpdateStatus = new DmfActionUpdateStatus(actionId, actionStatus);
+        final DmfActionUpdateStatus actionUpdateStatus = new DmfActionUpdateStatus(
+                actionId, actionStatus, null, null, updateResultMessages, null);
         headers.put(MessageHeaderKey.TYPE, MessageType.EVENT.name());
         headers.put(MessageHeaderKey.TENANT, tenant);
         headers.put(MessageHeaderKey.TOPIC, EventTopic.UPDATE_ACTION_STATUS.name());
         headers.put(MessageHeaderKey.CONTENT_TYPE, MessageProperties.CONTENT_TYPE_JSON);
-        actionUpdateStatus.addMessage(updateResultMessages);
 
         return convertMessage(actionUpdateStatus, messageProperties);
     }

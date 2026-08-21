@@ -16,11 +16,13 @@ import java.util.stream.Collectors;
 
 import org.eclipse.hawkbit.ContextAware;
 import org.eclipse.hawkbit.im.authentication.SpRole;
-import org.eclipse.hawkbit.im.authentication.TenantAwareUserProperties;
-import org.eclipse.hawkbit.im.authentication.TenantAwareUserProperties.User;
-import org.eclipse.hawkbit.security.DdiSecurityProperties;
-import org.eclipse.hawkbit.security.InMemoryUserAuthoritiesResolver;
+import org.eclipse.hawkbit.tenancy.TenantAware.DefaultTenantResolver;
+import org.eclipse.hawkbit.tenancy.TenantAware.TenantResolver;
+import org.eclipse.hawkbit.tenancy.TenantAwareUserProperties;
+import org.eclipse.hawkbit.tenancy.TenantAwareUserProperties.User;
 import org.eclipse.hawkbit.security.HawkbitSecurityProperties;
+import org.eclipse.hawkbit.security.InMemoryUserAuthoritiesResolver;
+import org.eclipse.hawkbit.security.MdcHandler;
 import org.eclipse.hawkbit.security.SecurityContextSerializer;
 import org.eclipse.hawkbit.security.SecurityContextTenantAware;
 import org.eclipse.hawkbit.security.SecurityTokenGenerator;
@@ -52,31 +54,34 @@ import org.springframework.util.CollectionUtils;
  * {@link EnableAutoConfiguration Auto-configuration} for security.
  */
 @Configuration
-@EnableConfigurationProperties({
-        SecurityProperties.class,
-        DdiSecurityProperties.class, HawkbitSecurityProperties.class, TenantAwareUserProperties.class })
+@EnableConfigurationProperties({ SecurityProperties.class, HawkbitSecurityProperties.class, TenantAwareUserProperties.class })
 public class SecurityAutoConfiguration {
 
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantResolver tenantResolver() {
+        return new DefaultTenantResolver();
+    }
+
     /**
-     * Creates a {@link ContextAware} (hence {@link TenantAware}) bean based on the given
-     * {@link UserAuthoritiesResolver} and {@link SecurityContextSerializer}.
+     * Creates a {@link ContextAware} (hence {@link TenantAware}) bean based on the given {@link UserAuthoritiesResolver} and
+     * {@link SecurityContextSerializer}.
      *
      * @param authoritiesResolver The user authorities/roles resolver
      * @param securityContextSerializer The security context serializer.
-     *
      * @return the {@link ContextAware} singleton bean.
      */
     @Bean
     @ConditionalOnMissingBean
     public ContextAware contextAware(
             final UserAuthoritiesResolver authoritiesResolver,
-            @Autowired(required = false) final SecurityContextSerializer securityContextSerializer) {
-        return new SecurityContextTenantAware(authoritiesResolver, securityContextSerializer);
+            @Autowired(required = false) final SecurityContextSerializer securityContextSerializer,
+            @Autowired(required = false) final TenantResolver tenantResolver) {
+        return new SecurityContextTenantAware(authoritiesResolver, securityContextSerializer, tenantResolver);
     }
 
     /**
-     * Creates a {@link UserAuthoritiesResolver} bean that is responsible for
-     * resolving user authorities/roles.
+     * Creates a {@link UserAuthoritiesResolver} bean that is responsible for resolving user authorities/roles.
      *
      * @param securityProperties The Spring {@link SecurityProperties} for the security user
      * @param tenantAwareUserProperties The {@link TenantAwareUserProperties} for the managed users
@@ -84,7 +89,8 @@ public class SecurityAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public UserAuthoritiesResolver inMemoryAuthoritiesResolver(final SecurityProperties securityProperties,
+    public UserAuthoritiesResolver inMemoryAuthoritiesResolver(
+            final SecurityProperties securityProperties,
             final TenantAwareUserProperties tenantAwareUserProperties) {
         final Map<String, User> tenantAwareUsers = tenantAwareUserProperties.getUser();
         final Map<String, List<String>> usersToPermissions;
@@ -110,47 +116,39 @@ public class SecurityAutoConfiguration {
     }
 
     /**
-     * @param tenantAware
-     *            singleton bean
+     * @param tenantAware singleton bean
      * @return tenantAware {@link SystemSecurityContext}
      */
     @Bean
     @ConditionalOnMissingBean
-    public SystemSecurityContext systemSecurityContext(
-            final TenantAware tenantAware, final RoleHierarchy roleHierarchy) {
+    public SystemSecurityContext systemSecurityContext(final TenantAware tenantAware, final RoleHierarchy roleHierarchy) {
         return new SystemSecurityContext(tenantAware, roleHierarchy);
     }
 
-    /**
-     * @return {@link SecurityTokenGenerator} bean
-     */
+    @Bean
+    @ConditionalOnMissingBean
+    public MdcHandler mdcHandler() {
+        return MdcHandler.getInstance();
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public SecurityTokenGenerator securityTokenGenerator() {
         return new SecurityTokenGenerator();
     }
 
-    /**
-     * @return {@link AuthenticationSuccessHandler} bean
-     */
     @Bean
     @ConditionalOnMissingBean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
         return new SimpleUrlAuthenticationSuccessHandler();
     }
 
-    /**
-     * @return {@link LogoutHandler} bean
-     */
     @Bean
     @ConditionalOnMissingBean
     public LogoutHandler logoutHandler() {
         return new SecurityContextLogoutHandler();
     }
 
-    /**
-     * @return {@link LogoutSuccessHandler} bean
-     */
     @Bean
     @ConditionalOnMissingBean
     public LogoutSuccessHandler logoutSuccessHandler() {
@@ -162,9 +160,7 @@ public class SecurityAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     static RoleHierarchy roleHierarchy() {
-        final RoleHierarchyImpl hierarchy = new RoleHierarchyImpl();
-        hierarchy.setHierarchy(SpRole.DEFAULT_ROLE_HIERARCHY);
-        return hierarchy;
+        return RoleHierarchyImpl.fromHierarchy(SpRole.DEFAULT_ROLE_HIERARCHY);
     }
 
     // and, if using method security also add

@@ -24,14 +24,10 @@ import org.eclipse.hawkbit.repository.jpa.JpaManagementHelper;
 import org.eclipse.hawkbit.repository.jpa.acm.AccessController;
 import org.eclipse.hawkbit.repository.jpa.builder.JpaTagCreate;
 import org.eclipse.hawkbit.repository.jpa.configuration.Constants;
+import org.eclipse.hawkbit.repository.jpa.model.AbstractJpaNamedEntity_;
 import org.eclipse.hawkbit.repository.jpa.model.JpaTargetTag;
-import org.eclipse.hawkbit.repository.jpa.model.JpaTargetTag_;
-import org.eclipse.hawkbit.repository.jpa.repository.TargetRepository;
 import org.eclipse.hawkbit.repository.jpa.repository.TargetTagRepository;
 import org.eclipse.hawkbit.repository.jpa.rsql.RSQLUtility;
-import org.eclipse.hawkbit.repository.jpa.specifications.TagSpecification;
-import org.eclipse.hawkbit.repository.jpa.specifications.TargetSpecifications;
-import org.eclipse.hawkbit.repository.model.Target;
 import org.eclipse.hawkbit.repository.model.TargetTag;
 import org.eclipse.hawkbit.repository.rsql.VirtualPropertyReplacer;
 import org.springframework.dao.ConcurrencyFailureException;
@@ -45,69 +41,23 @@ import org.springframework.validation.annotation.Validated;
 
 /**
  * JPA implementation of {@link TargetTagManagement}.
- *
  */
 @Transactional(readOnly = true)
 @Validated
 public class JpaTargetTagManagement implements TargetTagManagement {
 
     private final TargetTagRepository targetTagRepository;
-    private final TargetRepository targetRepository;
 
     private final VirtualPropertyReplacer virtualPropertyReplacer;
     private final Database database;
 
     public JpaTargetTagManagement(
-            final TargetTagRepository targetTagRepository, final TargetRepository targetRepository,
+            final TargetTagRepository targetTagRepository,
             final VirtualPropertyReplacer virtualPropertyReplacer,
             final Database database) {
         this.targetTagRepository = targetTagRepository;
-        this.targetRepository = targetRepository;
         this.virtualPropertyReplacer = virtualPropertyReplacer;
         this.database = database;
-    }
-
-    @Override
-    public Optional<TargetTag> getByName(final String name) {
-        return targetTagRepository.findByNameEquals(name);
-    }
-
-    @Override
-    @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
-    public TargetTag create(final TagCreate c) {
-        final JpaTagCreate create = (JpaTagCreate) c;
-
-        return targetTagRepository.save(AccessController.Operation.CREATE, create.buildTargetTag());
-    }
-
-    @Override
-    @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
-    public List<TargetTag> create(final Collection<TagCreate> tt) {
-        final List<JpaTargetTag> targetTagList = tt.stream().map(JpaTagCreate.class::cast)
-                .map(JpaTagCreate::buildTargetTag).toList();
-        return Collections.unmodifiableList(
-                targetTagRepository.saveAll(AccessController.Operation.CREATE, targetTagList));
-    }
-
-    @Override
-    @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
-    public void delete(final String targetTagName) {
-        targetTagRepository.delete(
-                targetTagRepository
-                    .findOne(((root, query, cb) -> cb.equal(root.get(JpaTargetTag_.name), targetTagName)))
-                    .orElseThrow(() -> new EntityNotFoundException(TargetTag.class, targetTagName)));
-    }
-
-    @Override
-    public Page<TargetTag> findByRsql(final Pageable pageable, final String rsqlParam) {
-        return JpaManagementHelper.findAllWithCountBySpec(targetTagRepository, pageable, Collections.singletonList(
-                RSQLUtility.buildRsqlSpecification(rsqlParam, TargetTagFields.class, virtualPropertyReplacer, database)));
     }
 
     @Override
@@ -117,19 +67,50 @@ public class JpaTargetTagManagement implements TargetTagManagement {
 
     @Override
     @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
-    public TargetTag update(final TagUpdate u) {
-        final GenericTagUpdate update = (GenericTagUpdate) u;
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    public TargetTag create(final TagCreate c) {
+        final JpaTagCreate create = (JpaTagCreate) c;
 
-        final JpaTargetTag tag = targetTagRepository.findById(update.getId())
-                .orElseThrow(() -> new EntityNotFoundException(TargetTag.class, update.getId()));
+        return targetTagRepository.save(AccessController.Operation.CREATE, create.buildTargetTag());
+    }
 
-        update.getName().ifPresent(tag::setName);
-        update.getDescription().ifPresent(tag::setDescription);
-        update.getColour().ifPresent(tag::setColour);
+    @Override
+    @Transactional
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    public List<TargetTag> create(final Collection<TagCreate> tt) {
+        final List<JpaTargetTag> targetTagList = tt.stream().map(JpaTagCreate.class::cast)
+                .map(JpaTagCreate::buildTargetTag).toList();
+        return Collections.unmodifiableList(
+                targetTagRepository.saveAll(AccessController.Operation.CREATE, targetTagList));
+    }
 
-        return targetTagRepository.save(tag);
+    @Override
+    @Transactional
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    public void delete(final String targetTagName) {
+        targetTagRepository.delete(
+                targetTagRepository
+                        .findOne(((root, query, cb) -> cb.equal(root.get(AbstractJpaNamedEntity_.name), targetTagName)))
+                        .orElseThrow(() -> new EntityNotFoundException(TargetTag.class, targetTagName)));
+    }
+
+    @Override
+    public Page<TargetTag> findAll(final Pageable pageable) {
+        return JpaManagementHelper.findAllWithCountBySpec(targetTagRepository, null, pageable);
+    }
+
+    @Override
+    public Page<TargetTag> findByRsql(final Pageable pageable, final String rsqlParam) {
+        return JpaManagementHelper.findAllWithCountBySpec(targetTagRepository, Collections.singletonList(
+                RSQLUtility.buildRsqlSpecification(rsqlParam, TargetTagFields.class, virtualPropertyReplacer, database)), pageable);
+    }
+
+    @Override
+    public Optional<TargetTag> getByName(final String name) {
+        return targetTagRepository.findByNameEquals(name);
     }
 
     @Override
@@ -143,17 +124,19 @@ public class JpaTargetTagManagement implements TargetTagManagement {
     }
 
     @Override
-    public Page<TargetTag> findAll(final Pageable pageable) {
-        return JpaManagementHelper.findAllWithCountBySpec(targetTagRepository, pageable, null);
-    }
+    @Transactional
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    public TargetTag update(final TagUpdate u) {
+        final GenericTagUpdate update = (GenericTagUpdate) u;
 
-    @Override
-    public Page<TargetTag> findByTarget(final Pageable pageable, final String controllerId) {
-        if (!targetRepository.exists(TargetSpecifications.hasControllerId(controllerId))) {
-            throw new EntityNotFoundException(Target.class, controllerId);
-        }
+        final JpaTargetTag tag = targetTagRepository.findById(update.getId())
+                .orElseThrow(() -> new EntityNotFoundException(TargetTag.class, update.getId()));
 
-        return JpaManagementHelper.findAllWithCountBySpec(targetTagRepository, pageable,
-                Collections.singletonList(TagSpecification.ofTarget(controllerId)));
+        update.getName().ifPresent(tag::setName);
+        update.getDescription().ifPresent(tag::setDescription);
+        update.getColour().ifPresent(tag::setColour);
+
+        return targetTagRepository.save(tag);
     }
 }

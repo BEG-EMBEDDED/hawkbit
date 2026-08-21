@@ -20,4 +20,7 @@ public abstract class AbstractBaseEntityBuilder implements Identifiable<Long> {
         return id;
     }
 
+    static String strip(final String value) {
+        return value == null ? null : value.strip();
+    }
 }

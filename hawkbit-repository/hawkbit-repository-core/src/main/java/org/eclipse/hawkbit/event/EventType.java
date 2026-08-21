@@ -12,13 +12,12 @@ package org.eclipse.hawkbit.event;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 
-import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.eclipse.hawkbit.repository.event.remote.CancelTargetAssignmentEvent;
 import org.eclipse.hawkbit.repository.event.remote.DistributionSetDeletedEvent;
 import org.eclipse.hawkbit.repository.event.remote.DistributionSetTagDeletedEvent;
 import org.eclipse.hawkbit.repository.event.remote.DistributionSetTypeDeletedEvent;
@@ -40,7 +39,6 @@ import org.eclipse.hawkbit.repository.event.remote.TargetTypeDeletedEvent;
 import org.eclipse.hawkbit.repository.event.remote.TenantConfigurationDeletedEvent;
 import org.eclipse.hawkbit.repository.event.remote.entity.ActionCreatedEvent;
 import org.eclipse.hawkbit.repository.event.remote.entity.ActionUpdatedEvent;
-import org.eclipse.hawkbit.repository.event.remote.CancelTargetAssignmentEvent;
 import org.eclipse.hawkbit.repository.event.remote.entity.DistributionSetCreatedEvent;
 import org.eclipse.hawkbit.repository.event.remote.entity.DistributionSetTagCreatedEvent;
 import org.eclipse.hawkbit.repository.event.remote.entity.DistributionSetTagUpdatedEvent;
@@ -76,7 +74,7 @@ import org.eclipse.hawkbit.repository.event.remote.entity.TenantConfigurationUpd
  * encoded value in the byte-payload.
  */
 // for marshalling and unmarshalling.
-@NoArgsConstructor(access = AccessLevel.PUBLIC)
+@NoArgsConstructor
 @Getter
 @EqualsAndHashCode
 @ToString
@@ -84,10 +82,10 @@ public class EventType {
 
     private static final Map<Integer, Class<?>> TYPES = new HashMap<>();
 
-    /**
-     * The associated event-type-value must remain the same as initially
-     * declared. Otherwise, messages cannot correctly de-serialized.
-     */
+    private int value;
+
+    // The associated event-type-value must remain the same as initially
+    // declared. Otherwise, messages cannot correctly de-serialized.
     static {
         // target
         TYPES.put(1, TargetCreatedEvent.class);
@@ -170,35 +168,33 @@ public class EventType {
         TYPES.put(46, TargetTypeDeletedEvent.class);
     }
 
-    private int value;
-
     /**
      * Constructor.
      *
-     * @param value
-     *            the value to initialize
+     * @param value the value to initialize
      */
     public EventType(final int value) {
         this.value = value;
     }
 
-    public Class<?> getTargetClass() {
-        return TYPES.get(value);
-    }
-
     /**
      * Returns a {@link EventType} based on the given class type.
      *
-     * @param clazz
-     *            the clazz type to retrieve the corresponding {@link EventType}
-     *            .
+     * @param clazz the clazz type to retrieve the corresponding {@link EventType}
+     *         .
      * @return the corresponding {@link EventType} or {@code null} if the clazz
      *         does not have a {@link EventType}.
      */
     public static EventType from(final Class<?> clazz) {
-        final Optional<Integer> foundEventType = TYPES.entrySet().stream()
-                .filter(entry -> entry.getValue().equals(clazz)).map(Entry::getKey).findAny();
+        return TYPES.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(clazz))
+                .map(Entry::getKey)
+                .findAny()
+                .map(EventType::new)
+                .orElse(null);
+    }
 
-        return foundEventType.map(EventType::new).orElse(null);
+    public Class<?> getTargetClass() {
+        return TYPES.get(value);
     }
 }

@@ -9,6 +9,17 @@
  */
 package org.eclipse.hawkbit.im.authentication;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+
+import org.eclipse.hawkbit.tenancy.TenantAwareAuthenticationDetails;
+import org.eclipse.hawkbit.tenancy.TenantAwareUser;
+import org.eclipse.hawkbit.tenancy.TenantAwareUserProperties;
 import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -19,55 +30,40 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.ObjectUtils;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 /**
  * Authentication provider for configured via spring application properties users.
- * The users could be tenant scoped or global.
+ * The users could be tenant scoped ({@link TenantAwareUserProperties}) or global ({@link SecurityProperties}).
  */
 public class StaticAuthenticationProvider extends DaoAuthenticationProvider {
 
     public StaticAuthenticationProvider(
-            final TenantAwareUserProperties tenantAwareUserProperties, final SecurityProperties securityProperties,
-            final PasswordEncoder passwordEncoder) {
-        setUserDetailsService(userDetailsService(securityProperties, tenantAwareUserProperties, passwordEncoder));
+            final TenantAwareUserProperties tenantAwareUserProperties, final SecurityProperties securityProperties) {
+        setUserDetailsService(userDetailsService(tenantAwareUserProperties, securityProperties));
     }
 
     @Override
-    protected Authentication createSuccessAuthentication(final Object principal,
-            final Authentication authentication, final UserDetails user) {
+    protected Authentication createSuccessAuthentication(final Object principal, final Authentication authentication, final UserDetails user) {
         final UsernamePasswordAuthenticationToken result = new UsernamePasswordAuthenticationToken(
                 principal, authentication.getCredentials(), user.getAuthorities());
-        result.setDetails(
-                user instanceof TenantAwareUser tenantAwareUser ?
-                        new TenantAwareAuthenticationDetails(tenantAwareUser.getTenant(), false) :
-                        user);
+        result.setDetails(user instanceof TenantAwareUser tenantAwareUser
+                ? new TenantAwareAuthenticationDetails(tenantAwareUser.getTenant(), false)
+                : user);
         return result;
     }
 
     private static UserDetailsService userDetailsService(
-            final SecurityProperties securityProperties,
-            final TenantAwareUserProperties tenantAwareUserProperties,
-            final PasswordEncoder passwordEncoder) {
+            final TenantAwareUserProperties tenantAwareUserProperties, final SecurityProperties securityProperties) {
         final List<User> userPrincipals = new ArrayList<>();
         tenantAwareUserProperties.getUser().forEach((username, user) -> {
-            final String password = password(user.getPassword(), passwordEncoder);
+            final String password = password(user.getPassword());
+
             final List<GrantedAuthority> credentials =
                     createAuthorities(user.getRoles(), user.getPermissions(), Collections::emptyList);
-            if (ObjectUtils.isEmpty(user.getTenant())) {
-                userPrincipals.add(new User(username, password, credentials));
-            } else {
-                userPrincipals.add(new TenantAwareUser(username, password, credentials, user.getTenant()));
-            }
+            userPrincipals.add(ObjectUtils.isEmpty(user.getTenant())
+                    ? new User(username, password, credentials)
+                    : new TenantAwareUser(username, password, credentials, user.getTenant()));
         });
 
         if (securityProperties != null && securityProperties.getUser() != null &&
@@ -75,18 +71,20 @@ public class StaticAuthenticationProvider extends DaoAuthenticationProvider {
             // explicitly setup system user - add is as a regular (non-tenant scoped) user
             userPrincipals.add(new User(
                     securityProperties.getUser().getName(),
-                    password(securityProperties.getUser().getPassword(), passwordEncoder),
+                    password(securityProperties.getUser().getPassword()),
                     createAuthorities(
                             securityProperties.getUser().getRoles(), Collections.emptyList(),
-                            PermissionUtils::createAllAuthorityList)));
+                            () -> SpPermission.getAllAuthorities().stream()
+                                    .map(SimpleGrantedAuthority::new)
+                                    .map(GrantedAuthority.class::cast)
+                                    .toList())));
         }
 
         return new FixedInMemoryTenantAwareUserDetailsService(userPrincipals);
     }
 
-    private static String password(final String password, final PasswordEncoder passwordEncoder) {
-        return passwordEncoder == null && !Pattern.compile("^\\{.+}.*$").matcher(password).matches() ?
-                "{noop}" + password : password;
+    private static String password(final String password) {
+        return !Pattern.compile("^\\{.+}.*$").matcher(password).matches() ? "{noop}" + password : password;
     }
 
     private static List<GrantedAuthority> createAuthorities(
@@ -130,9 +128,8 @@ public class StaticAuthenticationProvider extends DaoAuthenticationProvider {
         }
 
         private static User clone(final User user) {
-            if (user instanceof TenantAwareUser) {
-                return new TenantAwareUser(user.getUsername(), user.getPassword(), user.getAuthorities(),
-                        ((TenantAwareUser)user).getTenant());
+            if (user instanceof TenantAwareUser tenantAwareUser) {
+                return new TenantAwareUser(user.getUsername(), user.getPassword(), user.getAuthorities(), tenantAwareUser.getTenant());
             } else {
                 return new User(user.getUsername(), user.getPassword(), user.getAuthorities());
             }

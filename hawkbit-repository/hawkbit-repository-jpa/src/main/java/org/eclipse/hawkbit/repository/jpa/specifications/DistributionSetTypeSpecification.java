@@ -9,6 +9,8 @@
  */
 package org.eclipse.hawkbit.repository.jpa.specifications;
 
+import org.eclipse.hawkbit.repository.jpa.model.AbstractJpaNamedEntity_;
+import org.eclipse.hawkbit.repository.jpa.model.AbstractJpaTypeEntity_;
 import org.eclipse.hawkbit.repository.jpa.model.JpaDistributionSetType;
 import org.eclipse.hawkbit.repository.jpa.model.JpaDistributionSetType_;
 import org.eclipse.hawkbit.repository.model.DistributionSet;
@@ -20,6 +22,7 @@ import org.springframework.data.jpa.domain.Specification;
  * Spring Data JPQL Specifications.
  */
 public final class DistributionSetTypeSpecification {
+
     private DistributionSetTypeSpecification() {
         // utility class
     }
@@ -39,12 +42,11 @@ public final class DistributionSetTypeSpecification {
      * given {@link DistributionSetType#getName()} including fetching the
      * elements list.
      *
-     * @param name
-     *            to search
+     * @param name to search
      * @return the {@link DistributionSet} {@link Specification}
      */
     public static Specification<JpaDistributionSetType> byName(final String name) {
-        return (targetRoot, query, cb) -> cb.equal(targetRoot.get(JpaDistributionSetType_.name), name);
+        return (targetRoot, query, cb) -> cb.equal(targetRoot.get(AbstractJpaNamedEntity_.name), name);
     }
 
     /**
@@ -52,11 +54,10 @@ public final class DistributionSetTypeSpecification {
      * given {@link DistributionSetType#getKey()} including fetching the
      * elements list.
      *
-     * @param key
-     *            to search
+     * @param key to search
      * @return the {@link DistributionSet} {@link Specification}
      */
     public static Specification<JpaDistributionSetType> byKey(final String key) {
-        return (targetRoot, query, cb) -> cb.equal(targetRoot.get(JpaDistributionSetType_.key), key);
+        return (targetRoot, query, cb) -> cb.equal(targetRoot.get(AbstractJpaTypeEntity_.key), key);
     }
 }

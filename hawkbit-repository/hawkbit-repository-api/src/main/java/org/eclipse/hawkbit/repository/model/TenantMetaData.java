@@ -11,18 +11,10 @@ package org.eclipse.hawkbit.repository.model;
 
 /**
  * MetaData of a tenant account.
- *
  */
 public interface TenantMetaData extends BaseEntity {
 
-    /**
-     * @return default {@link DistributionSetType}.
-     */
     DistributionSetType getDefaultDsType();
 
-    /**
-     * @return tenant name
-     */
     String getTenant();
-
 }

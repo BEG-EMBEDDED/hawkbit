@@ -9,6 +9,15 @@
  */
 package org.eclipse.hawkbit.sdk.dmf.amqp;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.hawkbit.dmf.amqp.api.EventTopic;
 import org.eclipse.hawkbit.dmf.amqp.api.MessageHeaderKey;
@@ -33,24 +42,16 @@ import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.support.converter.AbstractJavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * Abstract class for sender and receiver service.
  */
 @Slf4j
 public class VHost extends DmfSender implements MessageListener {
 
+    private static final String REGEX_EXTRACT_ACTION_ID = "[^0-9]";
+
     private final SimpleMessageListenerContainer container;
     private final ConcurrentHashMap<String, DmfTenant> dmfTenants = new ConcurrentHashMap<>();
-
     private final Set<Long> openActions = Collections.synchronizedSet(new HashSet<>());
 
     public VHost(final ConnectionFactory connectionFactory, final AmqpProperties amqpProperties) {
@@ -80,17 +81,12 @@ public class VHost extends DmfSender implements MessageListener {
             rabbitAdmin.declareExchange(exchange);
             rabbitAdmin.declareBinding(BindingBuilder.bind(queue).to(exchange));
         }
-        
+
         container = new SimpleMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.setQueueNames(amqpProperties.getReceiverConnectorQueueFromSp());
         container.setMessageListener(this);
         container.start();
-    }
-
-    void stop() {
-        container.stop();
-        rabbitTemplate.destroy();
     }
 
     public void register(final DmfTenant dmfTenant) {
@@ -99,11 +95,11 @@ public class VHost extends DmfSender implements MessageListener {
 
     @Override
     public void onMessage(final Message message) {
-        final String tenantId = (String)message.getMessageProperties().getHeaders().get(MessageHeaderKey.TENANT);
-        final String controllerId = (String)message.getMessageProperties().getHeaders().get(MessageHeaderKey.THING_ID);
-        final String type = (String)message.getMessageProperties().getHeaders().get(MessageHeaderKey.TYPE);
+        final String tenantId = getTenant(message);
+        final String controllerId = (String) message.getMessageProperties().getHeaders().get(MessageHeaderKey.THING_ID);
+        final String type = (String) message.getMessageProperties().getHeaders().get(MessageHeaderKey.TYPE);
 
-        log.info("Message received for target {}, value : {}", controllerId, message.toString());
+        log.info("Message received for target {}, value : {}", controllerId, message);
         switch (MessageType.valueOf(type)) {
             case EVENT: {
                 checkContentTypeJson(message);
@@ -112,7 +108,7 @@ public class VHost extends DmfSender implements MessageListener {
             }
             case THING_DELETED: {
                 checkContentTypeJson(message);
-                Optional.ofNullable(dmfTenants.get(tenantId)).ifPresent(dmfTenant -> dmfTenant.remove(controllerId));
+                Optional.ofNullable(dmfTenants.get(tenantId)).ifPresent(dmfTenant -> dmfTenant.handleThingDeleted(controllerId));
                 break;
             }
             case PING_RESPONSE: {
@@ -130,6 +126,60 @@ public class VHost extends DmfSender implements MessageListener {
         }
     }
 
+    protected void handleAttributeUpdateRequest(final Message message, final String controllerId) {
+        final String tenantId = getTenant(message);
+        Optional.ofNullable(dmfTenants.get(tenantId))
+                .flatMap(dmfTenant -> dmfTenant.getController(controllerId))
+                .ifPresent(controller ->
+                        updateAttributes(tenantId, controllerId, DmfUpdateMode.MERGE, controller.getAttributes()));
+    }
+
+    protected void handleCancelDownloadAction(final Message message, final String thingId) {
+        final Long actionId = extractActionIdFrom(message);
+        processCancelDownloadAction(thingId, actionId);
+    }
+
+    protected void handleUpdateProcess(final Message message, final String controllerId, final EventTopic actionType) {
+        final String tenant = getTenant(message);
+        final DmfDownloadAndUpdateRequest downloadAndUpdateRequest = convertMessage(message,
+                DmfDownloadAndUpdateRequest.class);
+        dmfTenants.get(tenant).getController(controllerId)
+                .ifPresent(controller -> controller.setCurrentActionId(downloadAndUpdateRequest.getActionId()));
+        processUpdate(tenant, controllerId, actionType, downloadAndUpdateRequest);
+    }
+
+    void stop() {
+        container.stop();
+        rabbitTemplate.destroy();
+    }
+
+    private static String getTenant(final Message message) {
+        final MessageProperties messageProperties = message.getMessageProperties();
+        final Map<String, Object> headers = messageProperties.getHeaders();
+        return (String) headers.get(MessageHeaderKey.TENANT);
+    }
+
+    /**
+     * Method to validate if content type is set in the message properties.
+     *
+     * @param message the message to get validated
+     */
+    private static void checkContentTypeJson(final Message message) {
+        if (message.getBody().length == 0) {
+            return;
+        }
+        final MessageProperties messageProperties = message.getMessageProperties();
+        final String headerContentType = (String) messageProperties.getHeaders().get("content-type");
+        if (null != headerContentType) {
+            messageProperties.setContentType(headerContentType);
+        }
+        final String contentType = messageProperties.getContentType();
+        if (contentType != null && contentType.contains("json")) {
+            return;
+        }
+        throw new AmqpRejectAndDontRequeueException("Content-Type is not JSON compatible");
+    }
+
     private void handleEventMessage(final Message message, final String thingId) {
         final Object eventHeader = message.getMessageProperties().getHeaders().get(MessageHeaderKey.TOPIC);
         if (eventHeader == null) {
@@ -138,35 +188,33 @@ public class VHost extends DmfSender implements MessageListener {
         }
 
         // Exception squid:S2259 - Checked before
-        @SuppressWarnings({ "squid:S2259" })
-        final EventTopic eventTopic = EventTopic.valueOf(eventHeader.toString());
+        @SuppressWarnings({ "squid:S2259" }) final EventTopic eventTopic = EventTopic.valueOf(eventHeader.toString());
         switch (eventTopic) {
-        case CONFIRM:
-            handleConfirmation(message, thingId);
-            break;
-        case DOWNLOAD_AND_INSTALL, DOWNLOAD:
-            handleUpdateProcess(message, thingId, eventTopic);
-            break;
-        case CANCEL_DOWNLOAD:
-            handleCancelDownloadAction(message, thingId);
-            break;
-        case REQUEST_ATTRIBUTES_UPDATE:
-            handleAttributeUpdateRequest(message, thingId);
-            break;
-        case MULTI_ACTION:
-            handleMultiActionRequest(message, thingId);
-            break;
-        default:
-            log.info("No valid event property: {}", eventTopic);
-            break;
+            case CONFIRM:
+                handleConfirmation(thingId);
+                break;
+            case DOWNLOAD_AND_INSTALL, DOWNLOAD:
+                handleUpdateProcess(message, thingId, eventTopic);
+                break;
+            case CANCEL_DOWNLOAD:
+                handleCancelDownloadAction(message, thingId);
+                break;
+            case REQUEST_ATTRIBUTES_UPDATE:
+                handleAttributeUpdateRequest(message, thingId);
+                break;
+            case MULTI_ACTION:
+                handleMultiActionRequest(message, thingId);
+                break;
+            default:
+                log.info("No valid event property: {}", eventTopic);
+                break;
         }
     }
 
-    private void handleConfirmation(final Message message, final String controllerId) {
+    private void handleConfirmation(final String controllerId) {
         log.warn("Handle confirmed received for {}! Skip it!", controllerId);
     }
 
-    private static final String REGEX_EXTRACT_ACTION_ID = "[^0-9]";
     private long extractActionIdFrom(final Message message) {
         final String messageAsString = message.toString();
         final String requiredMessageContent = messageAsString
@@ -191,92 +239,39 @@ public class VHost extends DmfSender implements MessageListener {
         openActions.add(actionId);
 
         switch (eventTopic) {
-        case DOWNLOAD:
-        case DOWNLOAD_AND_INSTALL:
-            if (action instanceof DmfDownloadAndUpdateRequest) {
-                processUpdate(tenant, controllerId, eventTopic, (DmfDownloadAndUpdateRequest) action);
-            }
-            break;
-        case CANCEL_DOWNLOAD:
-            processCancelDownloadAction(controllerId, tenant, action.getActionId());
-            break;
-        default:
-            openActions.remove(actionId);
-            log.info("No valid event property in MULTI_ACTION.");
-            break;
+            case DOWNLOAD, DOWNLOAD_AND_INSTALL:
+                if (action instanceof DmfDownloadAndUpdateRequest dmfDownloadAndUpdateRequest) {
+                    processUpdate(tenant, controllerId, eventTopic, dmfDownloadAndUpdateRequest);
+                }
+                break;
+            case CANCEL_DOWNLOAD:
+                processCancelDownloadAction(controllerId, action.getActionId());
+                break;
+            default:
+                openActions.remove(actionId);
+                log.info("No valid event property in MULTI_ACTION.");
+                break;
         }
     }
 
-    protected void handleAttributeUpdateRequest(final Message message, final String controllerId) {
-        final String tenantId = getTenant(message);
-        Optional.ofNullable(dmfTenants.get(tenantId))
-                .flatMap(dmfTenant -> dmfTenant.getController(controllerId))
-                .ifPresent(controller ->
-                        updateAttributes(tenantId, controllerId, DmfUpdateMode.MERGE, controller.getAttributes()));
-    }
-
-    private static String getTenant(final Message message) {
-        final MessageProperties messageProperties = message.getMessageProperties();
-        final Map<String, Object> headers = messageProperties.getHeaders();
-        return ((String) headers.get(MessageHeaderKey.TENANT)).toLowerCase();
-    }
-
-    protected void handleCancelDownloadAction(final Message message, final String thingId) {
-        final String tenant = getTenant(message);
-        final Long actionId = extractActionIdFrom(message);
-
-        processCancelDownloadAction(thingId, tenant, actionId);
-    }
-
-    private void processCancelDownloadAction(final String thingId, final String tenant, final Long actionId) {
+    private void processCancelDownloadAction(final String thingId, final Long actionId) {
         finishUpdateProcess(thingId, actionId, Collections.singletonList("Simulation canceled"));
         openActions.remove(actionId);
     }
 
-    protected void handleUpdateProcess(final Message message, final String controllerId, final EventTopic actionType) {
-        final String tenant = getTenant(message);
-        final DmfDownloadAndUpdateRequest downloadAndUpdateRequest = convertMessage(message,
-                DmfDownloadAndUpdateRequest.class);
-        dmfTenants.get(tenant).getController(controllerId).get().setCurrentActionId(downloadAndUpdateRequest.getActionId());
-        processUpdate(tenant, controllerId, actionType, downloadAndUpdateRequest);
-    }
-
-    private void processUpdate(final String tenantId, final String controllerId, final EventTopic actionType, final DmfDownloadAndUpdateRequest updateRequest) {
+    private void processUpdate(final String tenantId, final String controllerId, final EventTopic actionType,
+            final DmfDownloadAndUpdateRequest updateRequest) {
         Optional.ofNullable(dmfTenants.get(tenantId))
                 .flatMap(dmfTenant -> dmfTenant.getController(controllerId))
                 .ifPresent(controller -> controller.processUpdate(actionType, updateRequest));
     }
 
     /**
-     * Convert a message body to a given class and set the message header
-     * AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME for Jackson converter.
+     * Convert a message body to a given class and set the message header AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME for Jackson converter.
      */
     @SuppressWarnings("unchecked")
     private <T> T convertMessage(final Message message, final Class<T> clazz) {
-        message.getMessageProperties().getHeaders().put(AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
-                clazz.getTypeName());
+        message.getMessageProperties().getHeaders().put(AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME, clazz.getTypeName());
         return (T) rabbitTemplate.getMessageConverter().fromMessage(message);
-    }
-
-    /**
-     * Method to validate if content type is set in the message properties.
-     *
-     * @param message
-     *            the message to get validated
-     */
-    private static void checkContentTypeJson(final Message message) {
-        if (message.getBody().length == 0) {
-            return;
-        }
-        final MessageProperties messageProperties = message.getMessageProperties();
-        final String headerContentType = (String) messageProperties.getHeaders().get("content-type");
-        if (null != headerContentType) {
-            messageProperties.setContentType(headerContentType);
-        }
-        final String contentType = messageProperties.getContentType();
-        if (contentType != null && contentType.contains("json")) {
-            return;
-        }
-        throw new AmqpRejectAndDontRequeueException("Content-Type is not JSON compatible");
     }
 }

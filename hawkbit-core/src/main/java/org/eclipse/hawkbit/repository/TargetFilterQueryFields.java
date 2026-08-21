@@ -9,55 +9,34 @@
  */
 package org.eclipse.hawkbit.repository;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.Getter;
+
 /**
- * Describing the fields of the Target model which can be used in the REST API
- * e.g. for sorting etc.
- *
+ * Describing the fields of the Target model which can be used in the REST API e.g. for sorting etc.
  */
-public enum TargetFilterQueryFields implements FieldNameProvider {
+@Getter
+public enum TargetFilterQueryFields implements RsqlQueryField {
 
-    /**
-     * The id field.
-     */
     ID("id"),
-
-    /**
-     * The name field.
-     */
     NAME("name"),
-
-    /**
-     * Distribution set for auto-assignment.
-     */
     AUTOASSIGNDISTRIBUTIONSET("autoAssignDistributionSet", "name", "version");
 
-    private final String fieldName;
+    private final String jpaEntityFieldName;
     private List<String> subEntityAttributes;
 
-    private TargetFilterQueryFields(final String fieldName) {
-        this(fieldName, Collections.emptyList());
+    TargetFilterQueryFields(final String jpaEntityFieldName) {
+        this(jpaEntityFieldName, Collections.emptyList());
     }
 
-    private TargetFilterQueryFields(final String fieldName, final String... subEntityAttribues) {
-        this(fieldName, Arrays.asList(subEntityAttribues));
+    TargetFilterQueryFields(final String jpaEntityFieldName, final String... subEntityAttribues) {
+        this(jpaEntityFieldName, List.of(subEntityAttribues));
     }
 
-    private TargetFilterQueryFields(final String fieldName, final List<String> subEntityAttribues) {
-        this.fieldName = fieldName;
+    TargetFilterQueryFields(final String jpaEntityFieldName, final List<String> subEntityAttribues) {
+        this.jpaEntityFieldName = jpaEntityFieldName;
         this.subEntityAttributes = subEntityAttribues;
-    }
-
-    @Override
-    public String getFieldName() {
-        return fieldName;
-    }
-
-    @Override
-    public List<String> getSubEntityAttributes() {
-        return subEntityAttributes;
     }
 }

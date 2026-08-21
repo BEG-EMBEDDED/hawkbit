@@ -15,7 +15,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -68,16 +67,15 @@ public class DdiSecurityProperties {
     @Data
     public static class Authentication {
 
-        private final Anonymous anonymous = new Anonymous();
         private final Targettoken targettoken = new Targettoken();
         private final Gatewaytoken gatewaytoken = new Gatewaytoken();
 
         /**
          * Target token authentication. Tokens are defined per target.
-         *
          */
         @Data
         public static class Targettoken {
+
             /**
              * Set to true to enable target token authentication.
              */
@@ -105,18 +103,6 @@ public class DdiSecurityProperties {
              */
             @ToString.Exclude
             private String key = "";
-        }
-
-        /**
-         * Anonymous authentication.
-         */
-        @Data
-        public static class Anonymous {
-
-            /**
-             * Set to true to enable anonymous DDI client authentication.
-             */
-            private boolean enabled = false;
         }
     }
 }

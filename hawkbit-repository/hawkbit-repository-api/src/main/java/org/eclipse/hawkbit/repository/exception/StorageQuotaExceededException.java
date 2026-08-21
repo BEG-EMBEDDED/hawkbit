@@ -11,12 +11,14 @@ package org.eclipse.hawkbit.repository.exception;
 
 import static org.eclipse.hawkbit.repository.SizeConversionHelper.byteValueToReadableString;
 
+import lombok.EqualsAndHashCode;
 import org.eclipse.hawkbit.exception.AbstractServerRtException;
 import org.eclipse.hawkbit.exception.SpServerError;
 
 /**
  * Thrown if storage quota is exceeded
  */
+@EqualsAndHashCode(callSuper = true)
 public class StorageQuotaExceededException extends AbstractServerRtException {
 
     private static final String MAX_ARTIFACT_SIZE_TOTAL_EXCEEDED = "Storage quota exceeded, %s left.";
@@ -27,8 +29,7 @@ public class StorageQuotaExceededException extends AbstractServerRtException {
     /**
      * Creates a new StorageQuotaExceededException with a quota value.
      *
-     * @param exceededQuotaValue
-     *            Value by how much the quota was exceeded
+     * @param exceededQuotaValue Value by how much the quota was exceeded
      */
     public StorageQuotaExceededException(final long exceededQuotaValue) {
         super(createQuotaErrorMessage(exceededQuotaValue), errorType);
@@ -37,7 +38,7 @@ public class StorageQuotaExceededException extends AbstractServerRtException {
 
     /**
      * Get a readable string of size quota including unit
-     * 
+     *
      * @return file size quota with unit
      */
     public String getExceededQuotaValueString() {

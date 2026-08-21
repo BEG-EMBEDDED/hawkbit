@@ -11,15 +11,14 @@ package org.eclipse.hawkbit.repository.jpa.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.qameta.allure.Description;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Story;
 import org.eclipse.hawkbit.repository.jpa.AbstractJpaIntegrationTest;
 import org.eclipse.hawkbit.repository.jpa.EntityInterceptor;
 import org.eclipse.hawkbit.repository.jpa.model.helper.EntityInterceptorHolder;
 import org.eclipse.hawkbit.repository.model.SoftwareModuleType;
 import org.eclipse.hawkbit.repository.model.Target;
-
-import io.qameta.allure.Description;
-import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,28 +27,28 @@ import org.junit.jupiter.api.Test;
  */
 @Feature("Component Tests - Repository")
 @Story("Entity Listener Interceptor")
-public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
+class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         EntityInterceptorHolder.getInstance().getEntityInterceptors().clear();
     }
 
     @Test
-    @Description("Verfies that the pre persist is called after a entity creation.")
-    public void prePersistIsCalledWhenPersistingATarget() {
+    @Description("Verifies that the pre persist is called after a entity creation.")
+    void prePersistIsCalledWhenPersistingATarget() {
         executePersistAndAssertCallbackResult(new PrePersistEntityListener());
     }
 
     @Test
-    @Description("Verfies that the post persist is called after a entity creation.")
-    public void postPersistIsCalledWhenPersistingATarget() {
+    @Description("Verifies that the post persist is called after a entity creation.")
+    void postPersistIsCalledWhenPersistingATarget() {
         executePersistAndAssertCallbackResult(new PostPersistEntityListener());
     }
 
     @Test
-    @Description("Verfies that the post load is called after a entity is loaded.")
-    public void postLoadIsCalledWhenLoadATarget() {
+    @Description("Verifies that the post load is called after a entity is loaded.")
+    void postLoadIsCalledWhenLoadATarget() {
         final PostLoadEntityListener postLoadEntityListener = new PostLoadEntityListener();
         EntityInterceptorHolder.getInstance().getEntityInterceptors().add(postLoadEntityListener);
 
@@ -61,26 +60,26 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     @Test
-    @Description("Verfies that the pre update is called after a entity update.")
-    public void preUpdateIsCalledWhenUpdateATarget() {
+    @Description("Verifies that the pre update is called after a entity update.")
+    void preUpdateIsCalledWhenUpdateATarget() {
         executeUpdateAndAssertCallbackResult(new PreUpdateEntityListener());
     }
 
     @Test
-    @Description("Verfies that the post update is called after a entity update.")
-    public void postUpdateIsCalledWhenUpdateATarget() {
+    @Description("Verifies that the post update is called after a entity update.")
+    void postUpdateIsCalledWhenUpdateATarget() {
         executeUpdateAndAssertCallbackResult(new PostUpdateEntityListener());
     }
 
     @Test
-    @Description("Verfies that the pre remove is called after a entity deletion.")
-    public void preRemoveIsCalledWhenDeletingATarget() {
+    @Description("Verifies that the pre remove is called after a entity deletion.")
+    void preRemoveIsCalledWhenDeletingATarget() {
         executeDeleteAndAssertCallbackResult(new PreRemoveEntityListener());
     }
 
     @Test
-    @Description("Verfies that the post remove is called after a entity deletion.")
-    public void postRemoveIsCalledWhenDeletingATarget() {
+    @Description("Verifies that the post remove is called after a entity deletion.")
+    void postRemoveIsCalledWhenDeletingATarget() {
         executeDeleteAndAssertCallbackResult(new PostRemoveEntityListener());
     }
 
@@ -92,10 +91,10 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private void executeUpdateAndAssertCallbackResult(final AbstractEntityListener entityInterceptor) {
-        Target updateTarget = addListenerAndCreateTarget(entityInterceptor, "targetToBeCreated");
-
-        updateTarget = targetManagement
-                .update(entityFactory.target().update(updateTarget.getControllerId()).name("New"));
+        final Target updateTarget = targetManagement.update(
+                entityFactory.target()
+                        .update(addListenerAndCreateTarget(entityInterceptor, "targetToBeCreated").getControllerId())
+                        .name("New"));
 
         assertThat(entityInterceptor.getEntity()).isNotNull();
         assertThat(entityInterceptor.getEntity()).isEqualTo(updateTarget);
@@ -131,6 +130,7 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private static class PrePersistEntityListener extends AbstractEntityListener {
+
         @Override
         public void prePersist(final Object entity) {
             setEntity(entity);
@@ -138,6 +138,7 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private static class PostPersistEntityListener extends AbstractEntityListener {
+
         @Override
         public void postPersist(final Object entity) {
             setEntity(entity);
@@ -146,6 +147,7 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private static class PostLoadEntityListener extends AbstractEntityListener {
+
         @Override
         public void postLoad(final Object entity) {
             setEntity(entity);
@@ -154,6 +156,7 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private static class PreUpdateEntityListener extends AbstractEntityListener {
+
         @Override
         public void preUpdate(final Object entity) {
             setEntity(entity);
@@ -161,6 +164,7 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private static class PostUpdateEntityListener extends AbstractEntityListener {
+
         @Override
         public void postUpdate(final Object entity) {
             setEntity(entity);
@@ -168,6 +172,7 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private static class PreRemoveEntityListener extends AbstractEntityListener {
+
         @Override
         public void preRemove(final Object entity) {
             setEntity(entity);
@@ -175,6 +180,7 @@ public class EntityInterceptorListenerTest extends AbstractJpaIntegrationTest {
     }
 
     private static class PostRemoveEntityListener extends AbstractEntityListener {
+
         @Override
         public void postRemove(final Object entity) {
             setEntity(entity);

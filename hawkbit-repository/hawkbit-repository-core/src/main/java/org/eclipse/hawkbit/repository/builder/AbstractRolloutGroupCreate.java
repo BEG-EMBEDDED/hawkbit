@@ -11,15 +11,14 @@ package org.eclipse.hawkbit.repository.builder;
 
 import org.eclipse.hawkbit.repository.ValidString;
 import org.eclipse.hawkbit.repository.model.RolloutGroupConditions;
-import org.springframework.util.StringUtils;
 
 /**
  * Create builder DTO.
  *
- * @param <T>
- *            update or create builder interface
+ * @param <T> update or create builder interface
  */
 public abstract class AbstractRolloutGroupCreate<T> extends AbstractNamedEntityBuilder<T> {
+
     @ValidString
     protected String targetFilterQuery;
     protected Float targetPercentage;
@@ -27,7 +26,7 @@ public abstract class AbstractRolloutGroupCreate<T> extends AbstractNamedEntityB
     protected boolean confirmationRequired;
 
     public T targetFilterQuery(final String targetFilterQuery) {
-        this.targetFilterQuery = StringUtils.trimWhitespace(targetFilterQuery);
+        this.targetFilterQuery = AbstractBaseEntityBuilder.strip(targetFilterQuery);
         return (T) this;
     }
 
@@ -45,5 +44,4 @@ public abstract class AbstractRolloutGroupCreate<T> extends AbstractNamedEntityB
         this.confirmationRequired = confirmationRequired;
         return (T) this;
     }
-
 }

@@ -16,9 +16,11 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.qameta.allure.Description;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Story;
 import org.eclipse.hawkbit.repository.exception.AutoConfirmationAlreadyActiveException;
 import org.eclipse.hawkbit.repository.exception.InvalidConfirmationFeedbackException;
 import org.eclipse.hawkbit.repository.jpa.AbstractJpaIntegrationTest;
@@ -29,10 +31,6 @@ import org.eclipse.hawkbit.repository.model.DeploymentRequestBuilder;
 import org.eclipse.hawkbit.repository.model.DistributionSet;
 import org.eclipse.hawkbit.repository.model.Target;
 import org.junit.jupiter.api.Test;
-
-import io.qameta.allure.Description;
-import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -40,7 +38,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 /**
  * Test class testing the functionality of triggering a deployment of
  * {@link DistributionSet}s to {@link Target}s with AutoConfirmation active.
- *
  */
 @Feature("Component Tests - Repository")
 @Story("Confirmation Management")
@@ -135,26 +132,26 @@ class ConfirmationManagementTest extends AbstractJpaIntegrationTest {
 
         final List<Action> actions = assignDistributionSet(dsId, controllerId).getAssignedEntity();
         assertThat(actions).hasSize(1).allMatch(action -> action.getStatus() == Status.WAIT_FOR_CONFIRMATION);
-        final Action newAction = confirmationManagement.confirmAction(actions.get(0).getId(), null, null);
+        final Long actionId = actions.get(0).getId();
+        final Action newAction = confirmationManagement.confirmAction(actionId, null, null);
         // verify action in RUNNING state
         assertThat(newAction.getStatus()).isEqualTo(Status.RUNNING);
 
-        assertThatThrownBy(() -> confirmationManagement.confirmAction(actions.get(0).getId(), null, null))
-              .isInstanceOf(InvalidConfirmationFeedbackException.class)
-              .matches(e -> ((InvalidConfirmationFeedbackException) e)
-                    .getReason() == InvalidConfirmationFeedbackException.Reason.NOT_AWAITING_CONFIRMATION);
+        assertThatThrownBy(() -> confirmationManagement.confirmAction(actionId, null, null))
+                .isInstanceOf(InvalidConfirmationFeedbackException.class)
+                .matches(e -> ((InvalidConfirmationFeedbackException) e)
+                        .getReason() == InvalidConfirmationFeedbackException.Reason.NOT_AWAITING_CONFIRMATION);
     }
 
     @Test
     @Description("Verify confirming a closed action will lead to a specific failure")
     void confirmedActionCannotBeGivenOnFinishedAction() {
         enableConfirmationFlow();
-        final Action action = prepareFinishedUpdate();
-
-        assertThatThrownBy(() -> confirmationManagement.confirmAction(action.getId(), null, null))
-              .isInstanceOf(InvalidConfirmationFeedbackException.class)
-              .matches(e -> ((InvalidConfirmationFeedbackException) e)
-                    .getReason() == InvalidConfirmationFeedbackException.Reason.ACTION_CLOSED);
+        final Long actionId = prepareFinishedUpdate().getId();
+        assertThatThrownBy(() -> confirmationManagement.confirmAction(actionId, null, null))
+                .isInstanceOf(InvalidConfirmationFeedbackException.class)
+                .matches(e -> ((InvalidConfirmationFeedbackException) e)
+                        .getReason() == InvalidConfirmationFeedbackException.Reason.ACTION_CLOSED);
     }
 
     @Test
@@ -197,7 +194,7 @@ class ConfirmationManagementTest extends AbstractJpaIntegrationTest {
 
         final List<Action> actions = assignDistributionSets(
                 Arrays.asList(toDeploymentRequest(controllerId, dsId), toDeploymentRequest(controllerId, dsId2)))
-                        .stream().flatMap(s -> s.getAssignedEntity().stream()).collect(Collectors.toList());
+                .stream().flatMap(s -> s.getAssignedEntity().stream()).toList();
         assertThat(actions).hasSize(2);
 
         assertThat(confirmationManagement.findActiveActionsWaitingConfirmation(controllerId)).hasSize(2)
@@ -261,24 +258,18 @@ class ConfirmationManagementTest extends AbstractJpaIntegrationTest {
         final String controllerId = testdataFactory.createTarget().getControllerId();
         confirmationManagement.activateAutoConfirmation(controllerId, initiator, remark);
 
-        assertThat(targetManagement.getByControllerID(controllerId)).hasValueSatisfying(target -> {
-            assertThat(target.getAutoConfirmationStatus()).isNotNull()
-                    .matches(status -> status.getTarget().getControllerId().equals(controllerId))
-                    .matches(status -> Objects.equals(status.getInitiator(), initiator))
-                    .matches(status -> Objects.equals(status.getCreatedBy(), "bumlux"))
-                    .matches(status -> Objects.equals(status.getRemark(), remark)).satisfies(status -> {
-                        final Instant activationTime = Instant.ofEpochMilli(status.getActivatedAt());
-                        assertThat(activationTime).isAfterOrEqualTo(activationTime.minusSeconds(3L));
-                    });
-        });
+        assertThat(targetManagement.getWithAutoConfigurationStatus(controllerId).getAutoConfirmationStatus())
+                .isNotNull()
+                .matches(status -> status.getTarget().getControllerId().equals(controllerId))
+                .matches(status -> Objects.equals(status.getInitiator(), initiator))
+                .matches(status -> Objects.equals(status.getCreatedBy(), "bumlux"))
+                .matches(status -> Objects.equals(status.getRemark(), remark)).satisfies(status -> {
+                    final Instant activationTime = Instant.ofEpochMilli(status.getActivatedAt());
+                    assertThat(activationTime).isAfterOrEqualTo(activationTime.minusSeconds(3L));
+                });
 
         confirmationManagement.deactivateAutoConfirmation(controllerId);
         verifyAutoConfirmationIsDisabled(controllerId);
-    }
-
-    private static Stream<Arguments> getAutoConfirmationArguments() {
-        return Stream.of(Arguments.of("TestUser", "TestRemark"), Arguments.of("TestUser", null),
-                Arguments.of(null, "TestRemark"), Arguments.of(null, null));
     }
 
     @Test
@@ -287,8 +278,7 @@ class ConfirmationManagementTest extends AbstractJpaIntegrationTest {
         final String controllerId = testdataFactory.createTarget().getControllerId();
 
         confirmationManagement.activateAutoConfirmation(controllerId, "any", "any");
-        assertThat(targetManagement.getByControllerID(controllerId))
-                .hasValueSatisfying(target -> assertThat(target.getAutoConfirmationStatus()).isNotNull());
+        assertThat(targetManagement.getWithAutoConfigurationStatus(controllerId).getAutoConfirmationStatus()).isNotNull();
 
         assertThatThrownBy(() -> confirmationManagement.activateAutoConfirmation(controllerId, "any", "any"))
                 .isInstanceOf(AutoConfirmationAlreadyActiveException.class)
@@ -305,13 +295,19 @@ class ConfirmationManagementTest extends AbstractJpaIntegrationTest {
         verifyAutoConfirmationIsDisabled(controllerId);
     }
 
-    private void verifyAutoConfirmationIsDisabled(final String controllerId) {
-        assertThat(targetManagement.getByControllerID(controllerId))
-                .hasValueSatisfying(target -> assertThat(target.getAutoConfirmationStatus()).isNull());
+    private static Stream<Arguments> getAutoConfirmationArguments() {
+        return Stream.of(
+                Arguments.of("TestUser", "TestRemark"),
+                Arguments.of("TestUser", null),
+                Arguments.of(null, "TestRemark"),
+                Arguments.of(null, null));
     }
 
     private static DeploymentRequest toDeploymentRequest(final String controllerId, final Long distributionSetId) {
         return new DeploymentRequestBuilder(controllerId, distributionSetId).setConfirmationRequired(true).build();
     }
 
+    private void verifyAutoConfirmationIsDisabled(final String controllerId) {
+        assertThat(targetManagement.getWithAutoConfigurationStatus(controllerId).getAutoConfirmationStatus()).isNull();
+    }
 }

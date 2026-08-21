@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import org.eclipse.hawkbit.im.authentication.SpPermission;
 import org.eclipse.hawkbit.repository.SoftwareModuleTypeFields;
 import org.eclipse.hawkbit.repository.SoftwareModuleTypeManagement;
 import org.eclipse.hawkbit.repository.builder.GenericSoftwareModuleTypeUpdate;
@@ -39,12 +40,12 @@ import org.springframework.data.domain.Slice;
 import org.springframework.orm.jpa.vendor.Database;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 /**
  * JPA implementation of {@link SoftwareModuleTypeManagement}.
- *
  */
 @Transactional(readOnly = true)
 @Validated
@@ -70,8 +71,20 @@ public class JpaSoftwareModuleTypeManagement implements SoftwareModuleTypeManage
 
     @Override
     @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    @PreAuthorize(SpPermission.SpringEvalExpressions.HAS_AUTH_CREATE_REPOSITORY)
+    public SoftwareModuleType create(final SoftwareModuleTypeCreate c) {
+        final JpaSoftwareModuleTypeCreate create = (JpaSoftwareModuleTypeCreate) c;
+
+        return softwareModuleTypeRepository.save(AccessController.Operation.CREATE, create.build());
+    }
+
+    @Override
+    @Transactional
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    @PreAuthorize(SpPermission.SpringEvalExpressions.HAS_AUTH_UPDATE_REPOSITORY)
     public SoftwareModuleType update(final SoftwareModuleTypeUpdate u) {
         final GenericSoftwareModuleTypeUpdate update = (GenericSoftwareModuleTypeUpdate) u;
 
@@ -85,49 +98,9 @@ public class JpaSoftwareModuleTypeManagement implements SoftwareModuleTypeManage
     }
 
     @Override
-    public Page<SoftwareModuleType> findByRsql(final Pageable pageable, final String rsqlParam) {
-        return JpaManagementHelper.findAllWithCountBySpec(softwareModuleTypeRepository, pageable,
-                List.of(
-                        RSQLUtility.buildRsqlSpecification(rsqlParam, SoftwareModuleTypeFields.class,
-                                virtualPropertyReplacer, database),
-                        SoftwareModuleTypeSpecification.isNotDeleted()));
-    }
-
-    @Override
-    public Slice<SoftwareModuleType> findAll(final Pageable pageable) {
-        return JpaManagementHelper.findAllWithoutCountBySpec(softwareModuleTypeRepository, pageable,
-                List.of(SoftwareModuleTypeSpecification.isNotDeleted()));
-    }
-
-    @Override
-    public long count() {
-        return softwareModuleTypeRepository.count(SoftwareModuleTypeSpecification.isNotDeleted());
-    }
-
-    @Override
-    public Optional<SoftwareModuleType> getByKey(final String key) {
-        return softwareModuleTypeRepository.findByKey(key);
-    }
-
-    @Override
-    public Optional<SoftwareModuleType> getByName(final String name) {
-        return softwareModuleTypeRepository.findByName(name);
-    }
-
-    @Override
     @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
-    public SoftwareModuleType create(final SoftwareModuleTypeCreate c) {
-            final JpaSoftwareModuleTypeCreate create = (JpaSoftwareModuleTypeCreate) c;
-
-            return softwareModuleTypeRepository.save(AccessController.Operation.CREATE, create.build());
-    }
-
-    @Override
-    @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
     public void delete(final long id) {
         final JpaSoftwareModuleType toDelete = softwareModuleTypeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(SoftwareModuleType.class, id));
@@ -137,28 +110,12 @@ public class JpaSoftwareModuleTypeManagement implements SoftwareModuleTypeManage
 
     @Override
     @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
-    public List<SoftwareModuleType> create(final Collection<SoftwareModuleTypeCreate> c) {
-        final List<JpaSoftwareModuleType> creates = c.stream().map(JpaSoftwareModuleTypeCreate.class::cast)
-                .map(JpaSoftwareModuleTypeCreate::build).toList();
-        return Collections.unmodifiableList(
-                softwareModuleTypeRepository.saveAll(AccessController.Operation.CREATE, creates));
-    }
-
-    @Override
-    @Transactional
-    @Retryable(include = {
-            ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX, backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
     public void delete(final Collection<Long> ids) {
         softwareModuleTypeRepository
                 .findAll(AccessController.Operation.DELETE, softwareModuleTypeRepository.byIdsSpec(ids))
                 .forEach(this::delete);
-    }
-
-    @Override
-    public List<SoftwareModuleType> get(final Collection<Long> ids) {
-        return Collections.unmodifiableList(softwareModuleTypeRepository.findAllById(ids));
     }
 
     @Override
@@ -167,8 +124,54 @@ public class JpaSoftwareModuleTypeManagement implements SoftwareModuleTypeManage
     }
 
     @Override
+    public List<SoftwareModuleType> get(final Collection<Long> ids) {
+        return Collections.unmodifiableList(softwareModuleTypeRepository.findAllById(ids));
+    }
+
+    @Override
     public boolean exists(final long id) {
         return softwareModuleTypeRepository.existsById(id);
+    }
+
+    @Override
+    public long count() {
+        return softwareModuleTypeRepository.count(SoftwareModuleTypeSpecification.isNotDeleted());
+    }
+
+    @Override
+    public Slice<SoftwareModuleType> findAll(final Pageable pageable) {
+        return JpaManagementHelper.findAllWithoutCountBySpec(softwareModuleTypeRepository, pageable,
+                List.of(SoftwareModuleTypeSpecification.isNotDeleted()));
+    }
+
+    @Override
+    public Page<SoftwareModuleType> findByRsql(final String rsqlParam, final Pageable pageable) {
+        return JpaManagementHelper.findAllWithCountBySpec(softwareModuleTypeRepository, List.of(
+                RSQLUtility.buildRsqlSpecification(rsqlParam, SoftwareModuleTypeFields.class,
+                        virtualPropertyReplacer, database),
+                SoftwareModuleTypeSpecification.isNotDeleted()), pageable
+        );
+    }
+
+    @Override
+    public Optional<SoftwareModuleType> findByKey(final String key) {
+        return softwareModuleTypeRepository.findByKey(key);
+    }
+
+    @Override
+    public Optional<SoftwareModuleType> findByName(final String name) {
+        return softwareModuleTypeRepository.findByName(name);
+    }
+
+    @Override
+    @Transactional
+    @Retryable(retryFor = { ConcurrencyFailureException.class }, maxAttempts = Constants.TX_RT_MAX,
+            backoff = @Backoff(delay = Constants.TX_RT_DELAY))
+    public List<SoftwareModuleType> create(final Collection<SoftwareModuleTypeCreate> c) {
+        final List<JpaSoftwareModuleType> creates = c.stream().map(JpaSoftwareModuleTypeCreate.class::cast)
+                .map(JpaSoftwareModuleTypeCreate::build).toList();
+        return Collections.unmodifiableList(
+                softwareModuleTypeRepository.saveAll(AccessController.Operation.CREATE, creates));
     }
 
     private void delete(JpaSoftwareModuleType toDelete) {

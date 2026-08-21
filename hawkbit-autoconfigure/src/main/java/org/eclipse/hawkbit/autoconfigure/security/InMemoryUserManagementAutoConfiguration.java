@@ -9,21 +9,15 @@
  */
 package org.eclipse.hawkbit.autoconfigure.security;
 
-import org.eclipse.hawkbit.im.authentication.MultitenancyIndicator;
 import org.eclipse.hawkbit.im.authentication.StaticAuthenticationProvider;
-import org.eclipse.hawkbit.im.authentication.TenantAwareUserProperties;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.eclipse.hawkbit.tenancy.TenantAwareUserProperties;
 import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.GlobalAuthenticationConfigurerAdapter;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.Optional;
 
 /**
  * Autoconfiguration for the in-memory-user-management.
@@ -36,23 +30,12 @@ public class InMemoryUserManagementAutoConfiguration extends GlobalAuthenticatio
     private final StaticAuthenticationProvider authenticationProvider;
 
     InMemoryUserManagementAutoConfiguration(final SecurityProperties securityProperties,
-            final TenantAwareUserProperties tenantAwareUserProperties,
-            final Optional<PasswordEncoder> passwordEncoder) {
-        authenticationProvider = new StaticAuthenticationProvider(tenantAwareUserProperties, securityProperties,
-                passwordEncoder.orElse(null));
+            final TenantAwareUserProperties tenantAwareUserProperties) {
+        authenticationProvider = new StaticAuthenticationProvider(tenantAwareUserProperties, securityProperties);
     }
 
     @Override
     public void configure(final AuthenticationManagerBuilder auth) {
         auth.authenticationProvider(authenticationProvider);
-    }
-
-    /**
-     * @return the multi-tenancy indicator to disallow multi-tenancy
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    MultitenancyIndicator multiTenancyIndicator() {
-        return () -> false;
     }
 }

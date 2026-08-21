@@ -13,10 +13,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * Bean for holding the system usage stats including tenant specific data.
- *
  */
+@EqualsAndHashCode(callSuper = true)
 public class SystemUsageReportWithTenants extends SystemUsageReport {
 
     private final List<TenantUsage> tenants = new ArrayList<>();
@@ -24,14 +26,10 @@ public class SystemUsageReportWithTenants extends SystemUsageReport {
     /**
      * Constructor.
      *
-     * @param overallTargets
-     *            of the system
-     * @param overallArtifacts
-     *            of the system
-     * @param overallActions
-     *            of the system
-     * @param overallArtifactVolumeInBytes
-     *            of the system
+     * @param overallTargets of the system
+     * @param overallArtifacts of the system
+     * @param overallActions of the system
+     * @param overallArtifactVolumeInBytes of the system
      */
     public SystemUsageReportWithTenants(final long overallTargets, final long overallArtifacts,
             final long overallActions, final long overallArtifactVolumeInBytes, final long overallTenants) {
@@ -39,8 +37,7 @@ public class SystemUsageReportWithTenants extends SystemUsageReport {
     }
 
     /**
-     * @param tenantUsage
-     *            of one tenant
+     * @param tenantUsage of one tenant
      * @return updated bean
      */
     public SystemUsageReportWithTenants addTenantData(final TenantUsage tenantUsage) {

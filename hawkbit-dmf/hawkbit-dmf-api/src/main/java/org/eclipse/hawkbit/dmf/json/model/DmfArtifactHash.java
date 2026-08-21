@@ -19,14 +19,12 @@ import lombok.Data;
 @Data
 public class DmfArtifactHash {
 
-    @JsonProperty
-    private String sha1;
-    @JsonProperty
-    private String md5;
+    private final String sha1;
+    private final String md5;
 
     /**
      * Constructor.
-     * 
+     *
      * @param sha1 the sha1 hash
      * @param md5 the md5 hash
      */

@@ -23,10 +23,8 @@ import lombok.Data;
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DmfMetadata {
-    @JsonProperty
-    private final String key;
 
-    @JsonProperty
+    private final String key;
     private final String value;
 
     @JsonCreator

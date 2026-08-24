@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 import org.eclipse.hawkbit.tenancy.TenantAwareAuthenticationDetails;
 import org.eclipse.hawkbit.tenancy.TenantAwareUser;
 import org.eclipse.hawkbit.tenancy.TenantAwareUserProperties;
-import org.springframework.boot.autoconfigure.security.SecurityProperties;
+import org.springframework.boot.security.autoconfigure.SecurityProperties;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.core.Authentication;
@@ -40,7 +40,7 @@ public class StaticAuthenticationProvider extends DaoAuthenticationProvider {
 
     public StaticAuthenticationProvider(
             final TenantAwareUserProperties tenantAwareUserProperties, final SecurityProperties securityProperties) {
-        setUserDetailsService(userDetailsService(tenantAwareUserProperties, securityProperties));
+        super(userDetailsService(tenantAwareUserProperties, securityProperties));
     }
 
     @Override

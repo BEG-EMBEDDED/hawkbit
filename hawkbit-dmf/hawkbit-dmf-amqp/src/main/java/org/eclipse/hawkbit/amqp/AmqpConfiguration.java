@@ -40,15 +40,16 @@ import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainerFactoryConfigurer;
+import org.springframework.boot.amqp.autoconfigure.SimpleRabbitListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.bus.ServiceMatcher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.retry.backoff.ExponentialBackOffPolicy;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.util.backoff.ExponentialBackOff;
 import org.springframework.util.ErrorHandler;
 
 /**
@@ -141,9 +142,8 @@ public class AmqpConfiguration {
         final RabbitTemplate rabbitTemplate = new RabbitTemplate(rabbitConnectionFactory);
         rabbitTemplate.setMessageConverter(new Jackson2JsonMessageConverter());
 
-        final RetryTemplate retryTemplate = new RetryTemplate();
-        retryTemplate.setBackOffPolicy(new ExponentialBackOffPolicy());
-        rabbitTemplate.setRetryTemplate(retryTemplate);
+        rabbitTemplate.setRetryTemplate(
+                new RetryTemplate(RetryPolicy.builder().backOff(new ExponentialBackOff()).build()));
 
         rabbitTemplate.setConfirmCallback((correlationData, ack, cause) -> {
             if (ack) {

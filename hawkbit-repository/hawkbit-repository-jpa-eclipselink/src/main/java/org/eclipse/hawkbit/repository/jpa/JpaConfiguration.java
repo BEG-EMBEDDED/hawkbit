@@ -17,9 +17,9 @@ import javax.sql.DataSource;
 import org.eclipse.hawkbit.tenancy.TenantAware;
 import org.eclipse.persistence.config.PersistenceUnitProperties;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
-import org.springframework.boot.autoconfigure.transaction.TransactionManagerCustomizers;
+import org.springframework.boot.jpa.autoconfigure.JpaBaseConfiguration;
+import org.springframework.boot.jpa.autoconfigure.JpaProperties;
+import org.springframework.boot.transaction.autoconfigure.TransactionManagerCustomizers;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.orm.jpa.vendor.AbstractJpaVendorAdapter;
@@ -48,7 +48,7 @@ public class JpaConfiguration extends JpaBaseConfiguration {
      * {@link MultiTenantJpaTransactionManager} bean.
      *
      * @return a new {@link PlatformTransactionManager}
-     * @see org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration#transactionManager(ObjectProvider)
+     * @see org.springframework.boot.jpa.autoconfigure.JpaBaseConfiguration#transactionManager(ObjectProvider)
      */
     @Override
     @Bean
@@ -70,7 +70,7 @@ public class JpaConfiguration extends JpaBaseConfiguration {
     }
 
     @Override
-    protected Map<String, Object> getVendorProperties() {
+    protected Map<String, Object> getVendorProperties(final DataSource dataSource) {
         final Map<String, Object> properties = new HashMap<>(7);
         // Turn off dynamic weaving to disable LTW lookup in static weaving mode
         properties.put(PersistenceUnitProperties.WEAVING, "false");

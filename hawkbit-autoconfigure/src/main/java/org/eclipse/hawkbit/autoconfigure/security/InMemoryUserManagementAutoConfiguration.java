@@ -11,7 +11,7 @@ package org.eclipse.hawkbit.autoconfigure.security;
 
 import org.eclipse.hawkbit.im.authentication.StaticAuthenticationProvider;
 import org.eclipse.hawkbit.tenancy.TenantAwareUserProperties;
-import org.springframework.boot.autoconfigure.security.SecurityProperties;
+import org.springframework.boot.security.autoconfigure.SecurityProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;

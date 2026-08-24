@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.NoArgsConstructor;
@@ -30,6 +31,7 @@ public class RolloutUpdatedEvent extends RemoteEntityEvent<Rollout> implements E
      * @param rollout the updated rollout
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public RolloutUpdatedEvent(final Rollout rollout, final String applicationId) {
         super(rollout, applicationId);
     }

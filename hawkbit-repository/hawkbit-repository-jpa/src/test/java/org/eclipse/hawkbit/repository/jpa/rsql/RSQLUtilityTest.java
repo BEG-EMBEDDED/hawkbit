@@ -61,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -105,6 +106,7 @@ class RSQLUtilityTest {
 
     @BeforeEach
     void beforeEach() {
+        MockitoAnnotations.openMocks(this);
         setupRoot(baseSoftwareModuleRootMock);
         setupRoot(subqueryRootMock);
     }

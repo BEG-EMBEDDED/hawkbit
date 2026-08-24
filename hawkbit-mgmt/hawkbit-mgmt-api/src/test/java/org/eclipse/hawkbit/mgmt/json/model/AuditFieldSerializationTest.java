@@ -11,8 +11,8 @@ package org.eclipse.hawkbit.mgmt.json.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
 import org.eclipse.hawkbit.mgmt.json.model.target.MgmtTarget;
@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 class AuditFieldSerializationTest {
 
     @Test
-    void assertAuditingFields() throws JsonProcessingException {
+    void assertAuditingFields() throws JacksonException {
         final MgmtTarget mgmtTarget = new MgmtTarget();
         mgmtTarget.setCreatedBy("user");
         mgmtTarget.setCreatedAt(System.currentTimeMillis() - 1_000_000);

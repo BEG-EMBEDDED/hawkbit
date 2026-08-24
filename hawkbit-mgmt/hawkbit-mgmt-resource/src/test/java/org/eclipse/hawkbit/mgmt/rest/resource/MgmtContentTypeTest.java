@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.mgmt.rest.resource;
 
+import java.nio.charset.StandardCharsets;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,9 +28,9 @@ import org.eclipse.hawkbit.rest.util.JsonBuilder;
 import org.eclipse.hawkbit.rest.util.MockMvcResultPrinter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.web.servlet.HttpEncodingAutoConfiguration;
+import org.springframework.boot.servlet.autoconfigure.HttpEncodingAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.web.servlet.server.Encoding;
+import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.context.annotation.Import;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.MediaType;
@@ -37,7 +38,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * With Spring Boot 2.2.x the default charset encoding became deprecated. In hawkBit we want to keep the old behavior for now and still
- * return the charset in the response, which is achieved through enabling {@link Encoding} via properties.
+ * return the charset in the response, which is achieved through enabling {@link ServerProperties.Encoding} via properties.
  */
 @SpringBootTest(properties = { "server.servlet.encoding.charset=UTF-8", "server.servlet.encoding.force=true" })
 @Import(HttpEncodingAutoConfiguration.class)
@@ -45,6 +46,13 @@ import org.springframework.test.web.servlet.MvcResult;
 @Story("Response Content-Type")
 @SuppressWarnings("java:S1874") // TODO for compatibility, to be checked if we really want to do that
 public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
+
+    // Spring Framework 7 removed MediaType.APPLICATION_JSON_UTF8; these preserve the exact
+    // values this test asserts on ("application/json;charset=UTF-8").
+    private static final String APPLICATION_JSON_UTF8_VALUE = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8";
+    private static final MediaType APPLICATION_JSON_UTF8 =
+            new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8);
+
 
     private final String dsName = "DS-ö";
     private DistributionSet ds;
@@ -60,7 +68,7 @@ public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
         final MvcResult result = mvc.perform(
                         post(MgmtRestConstants.DISTRIBUTIONSET_V1_REQUEST_MAPPING).content(JsonBuilder.distributionSets(
                                         Collections.singletonList(ds)))
-                                .contentType(MediaType.APPLICATION_JSON_UTF8))
+                                .contentType(APPLICATION_JSON_UTF8))
                 .andDo(MockMvcResultPrinter.print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("[0]name", equalTo(dsName)))
@@ -75,13 +83,13 @@ public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
         final MvcResult result = mvc.perform(
                         post(MgmtRestConstants.DISTRIBUTIONSET_V1_REQUEST_MAPPING).content(JsonBuilder.distributionSets(
                                         Collections.singletonList(ds)))
-                                .contentType(MediaType.APPLICATION_JSON_UTF8).accept(MediaType.APPLICATION_JSON))
+                                .contentType(APPLICATION_JSON_UTF8).accept(MediaType.APPLICATION_JSON))
                 .andDo(MockMvcResultPrinter.print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("[0]name", equalTo(dsName)))
                 .andReturn();
 
-        assertEquals(MediaType.APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
+        assertEquals(APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
     }
 
     @Test
@@ -90,13 +98,13 @@ public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
         final MvcResult result = mvc.perform(
                         post(MgmtRestConstants.DISTRIBUTIONSET_V1_REQUEST_MAPPING).content(JsonBuilder.distributionSets(
                                         Collections.singletonList(ds)))
-                                .contentType(MediaType.APPLICATION_JSON_UTF8).accept(MediaType.APPLICATION_JSON_UTF8))
+                                .contentType(APPLICATION_JSON_UTF8).accept(APPLICATION_JSON_UTF8))
                 .andDo(MockMvcResultPrinter.print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("[0]name", equalTo(dsName)))
                 .andReturn();
 
-        assertEquals(MediaType.APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
+        assertEquals(APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
     }
 
     @Test
@@ -105,7 +113,7 @@ public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
         final MvcResult result = mvc.perform(
                         post(MgmtRestConstants.DISTRIBUTIONSET_V1_REQUEST_MAPPING).content(JsonBuilder.distributionSets(
                                         Collections.singletonList(ds)))
-                                .contentType(MediaType.APPLICATION_JSON_UTF8).accept(MediaTypes.HAL_JSON))
+                                .contentType(APPLICATION_JSON_UTF8).accept(MediaTypes.HAL_JSON))
                 .andDo(MockMvcResultPrinter.print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("[0]name", equalTo(dsName)))
@@ -141,7 +149,7 @@ public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
                 .andExpect(jsonPath("[0]name", equalTo(dsName)))
                 .andReturn();
 
-        assertEquals(MediaType.APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
+        assertEquals(APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
     }
 
     @Test
@@ -149,13 +157,13 @@ public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
     public void postDistributionSet_ContentTypeJson_wAcceptJsonUtf8() throws Exception {
         final MvcResult result = mvc.perform(post(MgmtRestConstants.DISTRIBUTIONSET_V1_REQUEST_MAPPING)
                         .content(JsonBuilder.distributionSets(Collections.singletonList(ds))).contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON_UTF8))
+                        .accept(APPLICATION_JSON_UTF8))
                 .andDo(MockMvcResultPrinter.print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("[0]name", equalTo(dsName)))
                 .andReturn();
 
-        assertEquals(MediaType.APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
+        assertEquals(APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
     }
 
     @Test
@@ -191,18 +199,18 @@ public class MgmtContentTypeTest extends AbstractManagementApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        assertEquals(MediaType.APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
+        assertEquals(APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
     }
 
     @Test
     @Description("The response of a GET request shall contain charset=utf-8")
     public void getDistributionSet_wAcceptJsonUtf8() throws Exception {
-        final MvcResult result = mvc.perform(get(MgmtRestConstants.DISTRIBUTIONSET_V1_REQUEST_MAPPING).accept(MediaType.APPLICATION_JSON_UTF8))
+        final MvcResult result = mvc.perform(get(MgmtRestConstants.DISTRIBUTIONSET_V1_REQUEST_MAPPING).accept(APPLICATION_JSON_UTF8))
                 .andDo(MockMvcResultPrinter.print())
                 .andExpect(status().isOk())
                 .andReturn();
 
-        assertEquals(MediaType.APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
+        assertEquals(APPLICATION_JSON_UTF8_VALUE, getResponseHeaderContentType(result));
     }
 
     @Test

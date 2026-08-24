@@ -11,7 +11,7 @@ package org.eclipse.hawkbit.amqp;
 
 import java.util.Optional;
 
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.InvalidFormatException;
 import org.springframework.amqp.support.converter.MessageConversionException;
 
 /**

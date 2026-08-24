@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.NoArgsConstructor;
@@ -31,6 +32,7 @@ public class DistributionSetTagCreatedEvent extends RemoteEntityEvent<Distributi
      * @param tag the tag which is deleted
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public DistributionSetTagCreatedEvent(final DistributionSetTag tag, final String applicationId) {
         super(tag, applicationId);
     }

@@ -11,6 +11,7 @@ package org.eclipse.hawkbit.repository.event.remote.entity;
 
 import java.io.Serial;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.NoArgsConstructor;
 import org.eclipse.hawkbit.repository.event.entity.EntityCreatedEvent;
 import org.eclipse.hawkbit.repository.model.TargetTag;
@@ -30,6 +31,7 @@ public class TargetTagCreatedEvent extends RemoteEntityEvent<TargetTag> implemen
      * @param tag the tag which is deleted
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetTagCreatedEvent(final TargetTag tag, final String applicationId) {
         super(tag, applicationId);
     }

@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.eclipse.hawkbit.event.BusProtoStuffMessageConverter;
 import org.eclipse.hawkbit.repository.event.TenantAwareEvent;
 import org.eclipse.hawkbit.repository.jpa.AbstractJpaIntegrationTest;
@@ -85,7 +85,7 @@ import org.springframework.util.MimeTypeUtils;
         try {
             final String json = new ObjectMapper().writeValueAsString(event);
             return MessageBuilder.withPayload(json).copyHeaders(headers).build();
-        } catch (final JsonProcessingException e) {
+        } catch (final JacksonException e) {
             fail(e.getMessage());
         }
         return null;

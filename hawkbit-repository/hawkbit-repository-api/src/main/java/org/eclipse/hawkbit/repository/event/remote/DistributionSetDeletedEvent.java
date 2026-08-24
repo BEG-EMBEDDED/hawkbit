@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.NoArgsConstructor;
@@ -32,6 +33,7 @@ public class DistributionSetDeletedEvent extends RemoteIdEvent implements Entity
      * @param entityId the entity id
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public DistributionSetDeletedEvent(final String tenant, final Long entityId,
             final Class<? extends TenantAwareBaseEntity> entityClass, final String applicationId) {
         super(entityId, tenant, entityClass, applicationId);

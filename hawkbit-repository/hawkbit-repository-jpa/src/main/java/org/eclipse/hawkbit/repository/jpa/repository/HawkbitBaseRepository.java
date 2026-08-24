@@ -62,7 +62,7 @@ public class HawkbitBaseRepository<T, ID extends Serializable> extends SimpleJpa
 
     @Override
     public Slice<T> findAllWithoutCount(final Pageable pageable) {
-        return findAllWithoutCount(null, pageable);
+        return findAllWithoutCount(Specification.unrestricted(), pageable);
     }
 
     @Override

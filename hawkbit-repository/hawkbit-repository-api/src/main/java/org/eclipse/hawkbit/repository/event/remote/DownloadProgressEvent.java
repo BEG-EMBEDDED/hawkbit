@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.EqualsAndHashCode;
@@ -36,6 +37,7 @@ public class DownloadProgressEvent extends RemoteTenantAwareEvent {
      * @param shippedBytesSinceLast the shippedBytesSinceLast
      * @param applicationId the application id.
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public DownloadProgressEvent(final String tenant, final Long actionStatusId, final long shippedBytesSinceLast,
             final String applicationId) {
         super(actionStatusId, tenant, applicationId);

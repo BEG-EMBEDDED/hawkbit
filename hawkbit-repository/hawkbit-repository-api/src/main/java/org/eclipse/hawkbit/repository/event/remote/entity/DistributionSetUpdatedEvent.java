@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.EqualsAndHashCode;
@@ -35,6 +36,7 @@ public class DistributionSetUpdatedEvent extends RemoteEntityEvent<DistributionS
      * @param applicationId the origin application id
      * @param complete <code>true</code> if {@link DistributionSet} is after the update {@link DistributionSet#isComplete()}
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public DistributionSetUpdatedEvent(final DistributionSet ds, final String applicationId, final boolean complete) {
         super(ds, applicationId);
         this.complete = complete;

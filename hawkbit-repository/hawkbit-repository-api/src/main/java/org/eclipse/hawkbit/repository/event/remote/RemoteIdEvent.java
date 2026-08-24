@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 import java.util.Arrays;
 
@@ -45,6 +46,7 @@ public class RemoteIdEvent extends RemoteTenantAwareEvent {
      * @param entityClass the entity class
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     protected RemoteIdEvent(final Long entityId, final String tenant,
             final Class<? extends TenantAwareBaseEntity> entityClass, final String applicationId) {
         super(entityId, tenant, applicationId);

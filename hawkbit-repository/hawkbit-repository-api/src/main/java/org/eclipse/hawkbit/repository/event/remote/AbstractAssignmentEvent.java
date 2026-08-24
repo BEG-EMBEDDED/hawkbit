@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 import java.util.HashMap;
 import java.util.List;
@@ -36,13 +37,15 @@ public abstract class AbstractAssignmentEvent extends RemoteTenantAwareEvent {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private final Map<String, ActionProperties> actions = new HashMap<>();
+    private Map<String, ActionProperties> actions = new HashMap<>();
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     protected AbstractAssignmentEvent(final Object source, final Action a, final String applicationId) {
         super(source, a.getTenant(), applicationId);
         actions.put(a.getTarget().getControllerId(), new ActionProperties(a));
     }
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     protected AbstractAssignmentEvent(final Object source, final String tenant, final List<Action> a,
             final String applicationId) {
         super(source, tenant, applicationId);

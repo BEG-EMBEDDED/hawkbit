@@ -30,8 +30,8 @@ import org.hibernate.jpa.boot.spi.IntegratorProvider;
 import org.hibernate.service.spi.SessionFactoryServiceRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
+import org.springframework.boot.jpa.autoconfigure.JpaBaseConfiguration;
+import org.springframework.boot.jpa.autoconfigure.JpaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.orm.jpa.vendor.AbstractJpaVendorAdapter;
@@ -77,7 +77,7 @@ public class JpaConfiguration extends JpaBaseConfiguration {
     }
 
     @Override
-    protected Map<String, Object> getVendorProperties() {
+    protected Map<String, Object> getVendorProperties(final DataSource dataSource) {
         final Map<String, Object> properties = new HashMap<>(4);
 
         properties.put(MultiTenancySettings.MULTI_TENANT_IDENTIFIER_RESOLVER, tenantIdentifier);

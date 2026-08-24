@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 import java.util.Collection;
 
@@ -42,6 +43,7 @@ public class RolloutStoppedEvent extends RemoteTenantAwareEvent {
      * @param rolloutId the entity class (and source)
      * @param rolloutGroupIds the rollouts group ids
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public RolloutStoppedEvent(
             final String tenant, final String applicationId, final long rolloutId,
             final Collection<Long> rolloutGroupIds) {

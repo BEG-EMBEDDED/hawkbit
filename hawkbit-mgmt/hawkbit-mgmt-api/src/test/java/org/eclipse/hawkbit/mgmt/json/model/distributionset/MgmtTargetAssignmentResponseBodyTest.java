@@ -15,8 +15,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import io.qameta.allure.Story;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Description;

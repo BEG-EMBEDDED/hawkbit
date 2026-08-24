@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 import java.util.List;
 
@@ -35,6 +36,7 @@ public class MultiActionAssignEvent extends MultiActionEvent {
      * @param applicationId the application id
      * @param actions the actions of the deployment action
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public MultiActionAssignEvent(String tenant, String applicationId, List<Action> actions) {
         super(tenant, applicationId, actions);
     }

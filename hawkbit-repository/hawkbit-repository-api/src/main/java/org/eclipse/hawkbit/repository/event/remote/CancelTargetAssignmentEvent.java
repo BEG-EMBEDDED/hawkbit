@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 import java.util.List;
 
@@ -24,10 +25,12 @@ public class CancelTargetAssignmentEvent extends AbstractAssignmentEvent {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public CancelTargetAssignmentEvent(final Action a, final String applicationId) {
         super(applicationId, a, applicationId);
     }
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public CancelTargetAssignmentEvent(final String tenant, final List<Action> a, final String applicationId) {
         super(applicationId, tenant, a, applicationId);
     }

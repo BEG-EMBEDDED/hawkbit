@@ -14,6 +14,8 @@ import java.util.Optional;
 import com.vaadin.flow.component.Unit;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
+import com.vaadin.flow.router.AfterNavigationEvent;
+import com.vaadin.flow.router.AfterNavigationObserver;
 import com.vaadin.flow.component.avatar.Avatar;
 import com.vaadin.flow.component.contextmenu.MenuItem;
 import com.vaadin.flow.component.html.Anchor;
@@ -45,7 +47,7 @@ import org.eclipse.hawkbit.ui.simple.view.TargetView;
 /**
  * The main view is a top-level placeholder for other views.
  */
-public class MainLayout extends AppLayout {
+public class MainLayout extends AppLayout implements AfterNavigationObserver {
 
     private final transient AuthenticatedUser authenticatedUser;
     private final AccessAnnotationChecker accessChecker;
@@ -62,8 +64,7 @@ public class MainLayout extends AppLayout {
     }
 
     @Override
-    protected void afterNavigation() {
-        super.afterNavigation();
+    public void afterNavigation(final AfterNavigationEvent event) {
         viewTitle.setText(
                 Optional.ofNullable(getContent().getClass().getAnnotation(PageTitle.class))
                         .map(PageTitle::value)

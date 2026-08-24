@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -36,8 +37,8 @@ public abstract class MultiActionEvent extends RemoteTenantAwareEvent implements
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private final List<String> controllerIds = new ArrayList<>();
-    private final List<Long> actionIds = new ArrayList<>();
+    private List<String> controllerIds = new ArrayList<>();
+    private List<Long> actionIds = new ArrayList<>();
 
     /**
      * Constructor.
@@ -46,6 +47,7 @@ public abstract class MultiActionEvent extends RemoteTenantAwareEvent implements
      * @param applicationId the application id
      * @param actions the actions involved
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     protected MultiActionEvent(String tenant, String applicationId, List<Action> actions) {
         super(applicationId, tenant, applicationId);
         this.controllerIds.addAll(getControllerIdsFromActions(actions));

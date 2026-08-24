@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.NoArgsConstructor;
@@ -30,6 +31,7 @@ public class TargetTagUpdatedEvent extends RemoteEntityEvent<TargetTag> implemen
      * @param tag the tag which is updated
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetTagUpdatedEvent(final TargetTag tag, final String applicationId) {
         super(tag, applicationId);
     }

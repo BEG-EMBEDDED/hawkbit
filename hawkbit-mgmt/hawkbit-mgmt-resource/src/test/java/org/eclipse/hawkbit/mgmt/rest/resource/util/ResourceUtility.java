@@ -11,7 +11,7 @@ package org.eclipse.hawkbit.mgmt.rest.resource.util;
 
 import java.io.IOException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.eclipse.hawkbit.mgmt.json.model.artifact.MgmtArtifact;
 import org.eclipse.hawkbit.rest.json.model.ExceptionInfo;
 

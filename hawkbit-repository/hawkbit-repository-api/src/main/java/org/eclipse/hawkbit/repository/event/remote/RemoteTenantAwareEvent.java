@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import com.cronutils.utils.StringUtils;
@@ -43,6 +44,7 @@ public class RemoteTenantAwareEvent extends RemoteApplicationEvent implements Te
      * @param tenant the tenant
      * @param applicationId the applicationId
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public RemoteTenantAwareEvent(final Object source, final String tenant, final String applicationId) {
         // due to a bug in Spring Cloud, we cannot pass null for applicationId
         super(source, applicationId != null ? applicationId : StringUtils.EMPTY, DEFAULT_DESTINATION_FACTORY.getDestination(null));

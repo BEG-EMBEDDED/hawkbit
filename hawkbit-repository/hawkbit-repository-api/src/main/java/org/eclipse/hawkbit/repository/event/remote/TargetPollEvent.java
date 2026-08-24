@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.EqualsAndHashCode;
@@ -32,11 +33,13 @@ public class TargetPollEvent extends RemoteTenantAwareEvent {
     private String controllerId;
     private String targetAddress;
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetPollEvent(final String controllerId, final String tenant, final String applicationId) {
         super(controllerId, tenant, applicationId);
         this.controllerId = controllerId;
     }
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetPollEvent(final Target target, final String applicationId) {
         super(target.getControllerId(), target.getTenant(), applicationId);
         this.controllerId = target.getControllerId();

@@ -16,9 +16,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import java.io.IOException;
 import java.util.Collections;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.exc.MismatchedInputException;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
@@ -85,7 +85,7 @@ class DdiActionFeedbackTest {
 
     @Test
     @Description("Verify that deserialization works if optional fields are not parsed")
-    void shouldConvertItWithoutOptionalFieldTimestamp() throws JsonProcessingException {
+    void shouldConvertItWithoutOptionalFieldTimestamp() throws JacksonException {
         // Setup
         final String serializedDdiActionFeedback = """
             {

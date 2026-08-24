@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +44,7 @@ public class TargetAssignDistributionSetEvent extends AbstractAssignmentEvent {
      * @param applicationId the application id.
      * @param maintenanceWindowAvailable see {@link Action#isMaintenanceWindowAvailable()}
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetAssignDistributionSetEvent(final String tenant, final long distributionSetId, final List<Action> a,
             final String applicationId, final boolean maintenanceWindowAvailable) {
         super(distributionSetId, tenant,
@@ -58,6 +60,7 @@ public class TargetAssignDistributionSetEvent extends AbstractAssignmentEvent {
      * @param action the action created for this assignment
      * @param applicationId the application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetAssignDistributionSetEvent(final Action action, final String applicationId) {
         this(action.getTenant(), action.getDistributionSet().getId(), Collections.singletonList(action), applicationId,
                 action.isMaintenanceWindowAvailable());

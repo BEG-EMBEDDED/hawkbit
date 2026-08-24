@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import java.util.HashMap;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
@@ -60,7 +60,7 @@ class PreAuthorizeEnabledTest extends AbstractSecurityTest {
                 .andExpect(result -> {
                     // returns default DS type because of READ_TARGET
                     assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
-                    assertThat(new ObjectMapper().reader().readValue(result.getResponse().getContentAsString(), HashMap.class))
+                    assertThat(new ObjectMapper().readValue(result.getResponse().getContentAsString(), HashMap.class))
                             .hasSize(1);
                 });
     }

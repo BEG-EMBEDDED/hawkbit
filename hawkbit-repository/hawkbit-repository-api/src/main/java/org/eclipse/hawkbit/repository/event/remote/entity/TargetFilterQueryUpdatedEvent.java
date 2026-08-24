@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.NoArgsConstructor;
@@ -30,6 +31,7 @@ public class TargetFilterQueryUpdatedEvent extends RemoteEntityEvent<TargetFilte
      * @param baseEntity TargetFilterQuery entity
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetFilterQueryUpdatedEvent(final TargetFilterQuery baseEntity, final String applicationId) {
         super(baseEntity, applicationId);
     }

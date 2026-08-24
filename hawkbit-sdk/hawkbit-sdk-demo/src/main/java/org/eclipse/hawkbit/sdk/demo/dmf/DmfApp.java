@@ -22,7 +22,7 @@ import org.eclipse.hawkbit.sdk.dmf.amqp.Amqp;
 import org.eclipse.hawkbit.sdk.dmf.amqp.AmqpProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.amqp.RabbitProperties;
+import org.springframework.boot.amqp.autoconfigure.RabbitProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.shell.standard.ShellComponent;

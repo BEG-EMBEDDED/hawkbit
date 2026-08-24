@@ -48,7 +48,7 @@ import org.eclipse.hawkbit.repository.report.model.SystemUsageReportWithTenants;
 import org.eclipse.hawkbit.security.SystemSecurityContext;
 import org.eclipse.hawkbit.tenancy.TenantAware;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
+import org.springframework.boot.jpa.autoconfigure.JpaProperties;
 import org.springframework.cache.interceptor.KeyGenerator;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.data.domain.Page;

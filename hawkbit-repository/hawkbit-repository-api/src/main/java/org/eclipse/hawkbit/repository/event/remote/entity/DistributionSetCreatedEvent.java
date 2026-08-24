@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.NoArgsConstructor;
@@ -30,6 +31,7 @@ public class DistributionSetCreatedEvent extends RemoteEntityEvent<DistributionS
      * @param distributionSet the created distributionSet
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public DistributionSetCreatedEvent(final DistributionSet distributionSet, final String applicationId) {
         super(distributionSet, applicationId);
     }

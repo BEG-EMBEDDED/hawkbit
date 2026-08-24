@@ -13,7 +13,7 @@ import java.util.Optional;
 
 import org.eclipse.hawkbit.tenancy.TenantAware;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 
 /**
  * {@link CurrentTenantIdentifierResolver} and {@link HibernatePropertiesCustomizer} that resolves the

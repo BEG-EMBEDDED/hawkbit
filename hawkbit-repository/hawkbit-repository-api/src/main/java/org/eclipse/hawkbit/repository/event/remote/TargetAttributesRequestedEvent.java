@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.EqualsAndHashCode;
@@ -43,6 +44,7 @@ public class TargetAttributesRequestedEvent extends RemoteIdEvent {
      * @param entityClass the entity class
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public TargetAttributesRequestedEvent(final String tenant, final Long entityId, final String controllerId,
             final String targetAddress, final Class<? extends TenantAwareBaseEntity> entityClass,
             final String applicationId) {

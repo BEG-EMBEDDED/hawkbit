@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.NoArgsConstructor;
@@ -33,6 +34,7 @@ public class ActionUpdatedEvent extends AbstractActionEvent implements EntityUpd
      * @param rolloutGroupId rollout group identifier (optional)
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public ActionUpdatedEvent(
             final Action action, final Long targetId, final Long rolloutId, final Long rolloutGroupId, final String applicationId) {
         super(action, targetId, rolloutId, rolloutGroupId, applicationId);

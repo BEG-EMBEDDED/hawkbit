@@ -30,8 +30,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.DeleteSpecification;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.repository.query.FluentQuery;
+import org.springframework.data.jpa.domain.UpdateSpecification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor.SpecificationFluentQuery;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 
@@ -70,7 +72,7 @@ public class BaseEntityRepositoryACM<T extends AbstractJpaTenantAwareBaseEntity>
 
     @Override
     public long count() {
-        return count(null);
+        return count(Specification.unrestricted());
     }
 
     @Override
@@ -126,7 +128,7 @@ public class BaseEntityRepositoryACM<T extends AbstractJpaTenantAwareBaseEntity>
     @Override
     @NonNull
     public List<T> findAll() {
-        return findAll((Specification<T>) null);
+        return findAll(Specification.unrestricted());
     }
 
     @Override
@@ -173,6 +175,15 @@ public class BaseEntityRepositoryACM<T extends AbstractJpaTenantAwareBaseEntity>
 
     @Override
     @NonNull
+    public Page<T> findAll(final Specification<T> spec, final Specification<T> countSpec, @NonNull final Pageable pageable) {
+        return repository.findAll(
+                accessController.appendAccessRules(AccessController.Operation.READ, spec),
+                accessController.appendAccessRules(AccessController.Operation.READ, countSpec),
+                pageable);
+    }
+
+    @Override
+    @NonNull
     public List<T> findAll(final Specification<T> spec, @NonNull final Sort sort) {
         return repository.findAll(accessController.appendAccessRules(AccessController.Operation.READ, spec), sort);
     }
@@ -188,13 +199,50 @@ public class BaseEntityRepositoryACM<T extends AbstractJpaTenantAwareBaseEntity>
                 Objects.requireNonNull(accessController.appendAccessRules(AccessController.Operation.READ, spec)));
     }
 
+    /**
+     * TODO - unimplemented since the Spring Boot 4 / Spring Data JPA 4 upgrade.
+     * <p>
+     * Spring Data JPA 4 requires a {@link DeleteSpecification} here, whose callback receives a
+     * {@link jakarta.persistence.criteria.CriteriaDelete} instead of a
+     * {@link jakarta.persistence.criteria.CriteriaQuery}. Access rules are modelled as
+     * {@link Specification} ({@code AccessController#getAccessRules}) and cannot be adapted
+     * generically, because a rule may legitimately use the query object it is handed. Making this
+     * work requires expressing access rules as {@link org.springframework.data.jpa.domain.PredicateSpecification},
+     * which is a deliberate change to the access-control model and must not be guessed at - an access
+     * rule that silently fails to apply is a data-leak, not a compile error.
+     *
+     * @throws UnsupportedOperationException always
+     */
+    /**
+     * TODO - unimplemented since the Spring Boot 4 / Spring Data JPA 4 upgrade.
+     * <p>
+     * New in Spring Data JPA 4 and blocked for the same reason as
+     * {@link #delete(DeleteSpecification)}: an {@link UpdateSpecification} callback receives a
+     * {@link jakarta.persistence.criteria.CriteriaUpdate}, which hawkBit's
+     * {@link Specification}-based access rules cannot be adapted to without re-modelling them as
+     * {@link org.springframework.data.jpa.domain.PredicateSpecification}.
+     *
+     * @throws UnsupportedOperationException always
+     */
     @Override
-    public long delete(final Specification<T> spec) {
-        return repository.delete(accessController.appendAccessRules(AccessController.Operation.DELETE, spec));
+    public long update(final UpdateSpecification<T> spec) {
+        throw new UnsupportedOperationException(
+                "update(UpdateSpecification) is not implemented: hawkBit access rules are Specification-based "
+                        + "and must be re-modelled as PredicateSpecification before update-by-specification can be "
+                        + "access-controlled under Spring Data JPA 4");
     }
 
     @Override
-    public <S extends T, R> R findBy(final Specification<T> spec, final Function<FluentQuery.FetchableFluentQuery<S>, R> queryFunction) {
+    public long delete(final DeleteSpecification<T> spec) {
+        throw new UnsupportedOperationException(
+                "delete(DeleteSpecification) is not implemented: hawkBit access rules are Specification-based "
+                        + "and must be re-modelled as PredicateSpecification before delete-by-specification can be "
+                        + "access-controlled under Spring Data JPA 4");
+    }
+
+    @Override
+    public <S extends T, R> R findBy(
+            final Specification<T> spec, final Function<? super SpecificationFluentQuery<S>, R> queryFunction) {
         Objects.requireNonNull(spec, SPEC_MUST_NOT_BE_NULL);
         return repository.findBy(
                 // spec shall be non-null and the result of appending rules shall be non-null
@@ -207,18 +255,18 @@ public class BaseEntityRepositoryACM<T extends AbstractJpaTenantAwareBaseEntity>
     @Override
     @NonNull
     public Iterable<T> findAll(@NonNull final Sort sort) {
-        return findAll(null, sort);
+        return findAll(Specification.unrestricted(), sort);
     }
 
     @Override
     @NonNull
     public Page<T> findAll(@NonNull final Pageable pageable) {
-        return findAll(null, pageable);
+        return findAll(Specification.unrestricted(), pageable);
     }
 
     @Override
     public Slice<T> findAllWithoutCount(final Pageable pageable) {
-        return findAllWithoutCount(null, pageable);
+        return findAllWithoutCount(Specification.unrestricted(), pageable);
     }
 
     @Override

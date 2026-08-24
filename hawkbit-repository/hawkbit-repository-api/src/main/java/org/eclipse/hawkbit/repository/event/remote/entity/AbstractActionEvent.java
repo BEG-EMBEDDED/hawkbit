@@ -9,6 +9,7 @@
  */
 package org.eclipse.hawkbit.repository.event.remote.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.Serial;
 
 import lombok.Data;
@@ -27,9 +28,9 @@ public abstract class AbstractActionEvent extends RemoteEntityEvent<Action> {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private final Long targetId;
-    private final Long rolloutId;
-    private final Long rolloutGroupId;
+    private Long targetId;
+    private Long rolloutId;
+    private Long rolloutGroupId;
 
     /**
      * Default constructor.
@@ -50,6 +51,7 @@ public abstract class AbstractActionEvent extends RemoteEntityEvent<Action> {
      * @param rolloutGroupId rollout group identifier (optional)
      * @param applicationId the origin application id
      */
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     protected AbstractActionEvent(
             final Action action, final Long targetId, final Long rolloutId,
             final Long rolloutGroupId, final String applicationId) {
